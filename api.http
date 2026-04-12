@@ -1,0 +1,32 @@
+@baseUrl = http://localhost:3000
+
+### Create user (password is generated server-side; not in body)
+POST {{baseUrl}}/users/new
+Content-Type: application/json
+
+{
+  "email": "alice@example.com",
+  "username": "alice",
+  "firstName": "Alice",
+  "lastName": "Example"
+}
+
+### Get user by email
+GET {{baseUrl}}/users?email=alice@example.com
+
+### Edit user (replace 1 with a real id from create response)
+POST {{baseUrl}}/users/edit/1
+Content-Type: application/json
+
+{
+  "firstName": "Alicia",
+  "lastName": "Updated"
+}
+
+### Edit user — duplicate email should return 409 if taken
+POST {{baseUrl}}/users/edit/1
+Content-Type: application/json
+
+{
+  "email": "other@example.com"
+}

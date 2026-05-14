@@ -8,12 +8,13 @@ type Vote = {
   voteType: "Upvote" | "Downvote";
 };
 
-type Comment = Record<string, never>;
+type Comment = Record<string, unknown>;
 
 export type Post = {
+  id: number;
   title: string;
   dateCreated: string;
-  memberPostedBy: any;
+  memberPostedBy: { user: { username: string } };
   comments: Comment[];
   votes: Vote[];
 };
@@ -27,8 +28,8 @@ function computeVoteCount(votes: Vote[]) {
 export function PostsList({ posts }: { posts: Post[] }) {
   return (
     <div className="posts-list">
-      {posts.map((post, key) => (
-        <div className="post-item" key={key}>
+      {posts.map((post) => (
+        <div className="post-item" key={post.id}>
           <div className="post-item-votes">
             <div className="post-item-upvote">
               <img src={arrow} alt="" />

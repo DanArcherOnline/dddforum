@@ -20,10 +20,12 @@
     "test:dev": "jest --watchAll",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "db:up": "docker compose up -d",
+    "db:up": "docker compose up -d || docker start dddforum-postgres",
     "db:down": "docker compose down",
     "db:migrate": "prisma migrate deploy",
-    "db:setup": "docker compose up -d --wait && npm run db:migrate",
+    "db:setup": "(docker compose up -d --wait || docker start dddforum-postgres) && npm run db:migrate",
+    "db:reset": "prisma migrate reset --force",
+    "db:seed": "ts-node prisma/seed.ts",
     "postinstall": "prisma generate"
   },
   "husky": {

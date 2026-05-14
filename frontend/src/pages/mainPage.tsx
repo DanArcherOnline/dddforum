@@ -1,45 +1,53 @@
+import { useEffect, useState } from "react";
 import { Layout } from "../components/layout";
 import { PostsList, type Post } from "../components/postsList";
 import { PostsViewSwitcher } from "../components/postsViewSwitcher";
-
-function votesForPost(postId: number, netScore: number): Post["votes"] {
-  const votes: Post["votes"] = [];
-  let id = postId * 100;
-  for (let i = 0; i < netScore; i++) {
-    votes.push({ id: id++, postId, voteType: "Upvote" });
-  }
-  return votes;
-}
+import { getPopularPosts } from "../network/getPopularPosts";
 
 export function MainPage() {
-  const posts: Post[] = [
-    {
-      title: "First Post",
-      dateCreated: new Date(Date.now() - 2 * 86400000).toISOString(),
-      memberPostedBy: { user: { username: "username" } },
-      comments: [],
-      votes: votesForPost(1, 5),
-    },
-    {
-      title: "Second Post!",
-      dateCreated: new Date(Date.now() - 30 * 86400000).toISOString(),
-      memberPostedBy: { user: { username: "username" } },
-      comments: [{}, {}, {}],
-      votes: votesForPost(2, 2),
-    },
-    {
-      title: "Why DDD?",
-      dateCreated: new Date(Date.now() - 10 * 86400000).toISOString(),
-      memberPostedBy: { user: { username: "username" } },
-      comments: [{}, {}, {}],
-      votes: votesForPost(3, 7),
-    },
-  ];
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const nextPosts = await getPopularPosts();
+        if (!cancelled) {
+          setPosts(nextPosts);
+        }
+      } catch {
+        if (!cancelled) {
+          setError("Could not load posts.");
+          setPosts([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <Layout>
       <PostsViewSwitcher />
-      <PostsList posts={posts} />
+      {loading ? (
+        <p>Loading posts…</p>
+      ) : error !== null ? (
+        <p>{error}</p>
+      ) : (
+        <PostsList posts={posts} />
+      )}
     </Layout>
   );
 }

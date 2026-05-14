@@ -5,6 +5,7 @@ import express, {
   type Response,
 } from "express";
 import { prisma } from "./database/prismaClient";
+import { postRoutes } from "./routes/postRoutes";
 import { userRoutes } from "./routes/userRoutes";
 
 const app = express();
@@ -48,6 +49,7 @@ if (process.env.NODE_ENV !== "production") {
   });
 }
 
+app.use(postRoutes);
 app.use(userRoutes);
 
 app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {

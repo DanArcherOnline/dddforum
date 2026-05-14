@@ -29,7 +29,7 @@ export async function findUserByEmail(email: string): Promise<User | null> {
 }
 
 export async function findUserByUsername(username: string): Promise<User | null> {
-  return prisma.user.findUnique({ where: { username: username } });
+  return prisma.user.findFirst({ where: { username } });
 }
 
 export function isUniqueConstraintError(error: unknown): boolean {

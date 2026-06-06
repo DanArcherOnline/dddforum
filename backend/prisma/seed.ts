@@ -28,11 +28,6 @@ const initialUsers: User[] = [
   },
 ];
 
-const initialMemberUserIds = [
-  { memberId: 1, userId: 1 },
-  { memberId: 2, userId: 2 },
-  { memberId: 3, userId: 3 },
-];
 
 const initialPosts: Post[] = [
   {
@@ -96,34 +91,40 @@ const initialPostComments: Comment[] = [
 
 async function seed() {
   for (const user of initialUsers) {
-    const newUser = await prisma.user.create({
-      data: user,
+    const upsertedUser = await prisma.user.upsert({
+      where: { id: user.id },
+      create: user,
+      update: user,
     });
 
-    await prisma.member.create({
-      data: {
-        user: {
-          connect: { id: newUser.id },
-        },
-      },
+    await prisma.member.upsert({
+      where: { userId: upsertedUser.id },
+      create: { user: { connect: { id: upsertedUser.id } } },
+      update: {},
     });
   }
 
   for (const post of initialPosts) {
-    await prisma.post.create({
-      data: post,
+    await prisma.post.upsert({
+      where: { id: post.id },
+      create: post,
+      update: post,
     });
   }
 
   for (const vote of initialPostVotes) {
-    await prisma.vote.create({
-      data: vote,
+    await prisma.vote.upsert({
+      where: { id: vote.id },
+      create: vote,
+      update: vote,
     });
   }
 
   for (const comment of initialPostComments) {
-    await prisma.comment.create({
-      data: comment,
+    await prisma.comment.upsert({
+      where: { id: comment.id },
+      create: comment,
+      update: comment,
     });
   }
 }

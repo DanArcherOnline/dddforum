@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "rimraf ./build && tsc",
-    "start:dev": "npx nodemon",
+    "start:dev": "npm run db:setup && npm run db:seed && npx nodemon",
     "start": "npm run build && node build/index.js",
     "lint": "eslint . --ext .ts",
     "prettier-format": "run-script-os",
@@ -18,6 +18,8 @@
     "prettier-watch:default": "onchange 'src/**/*.ts' -- prettier --write {{changed}}",
     "test": "jest",
     "test:dev": "jest --watchAll",
+    "test:e2e": "jest --config jest.config.e2e.ts --passWithNoTests",
+    "test:e2e:dev": "jest --config jest.config.e2e.ts --watch",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "db:up": "docker compose up -d || docker start dddforum-postgres",

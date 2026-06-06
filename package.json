@@ -5,7 +5,13 @@
   "workspaces": ["backend", "frontend", "shared"],
   "scripts": {
     "clean": "npm run clean --workspaces --if-present",
-    "build": "npm run build --workspaces --if-present"
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "start:dev": "concurrently --names server,client \"npm run start:dev:back\" \"npm run start:dev:front\"",
+    "start:dev:back": "npm run start:dev --workspace=@dddforum/backend",
+    "start:dev:front": "npm run start:dev --workspace=@dddforum/frontend",
+    "test:e2e:back": "npm run test:e2e --workspace=@dddforum/backend",
+    "test:e2e:front": "npm run test:e2e --workspace=@dddforum/frontend"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

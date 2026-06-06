@@ -203,4 +203,76 @@ defineFeature(feature, (test) => {
       }
     });
   });
+
+  test("Username already taken", ({ given, when, then, and }) => {
+    let existingUserInputs: CreateUserInput[];
+    let createUserResponses: Response[];
+
+    given(
+      "a set of users have already created their accounts with valid details",
+      async (table) => {
+        type Row = {
+          firstName: string;
+          lastName: string;
+          username: string;
+          email: string;
+        };
+        existingUserInputs = table.map((row: Row) =>
+          new CreateUserInputBuilder()
+            .withFirstName(row.firstName)
+            .withLastName(row.lastName)
+            .withEmail(row.email)
+            .withUsername(row.username)
+            .build(),
+        );
+        await Promise.all(
+          existingUserInputs.map((input) =>
+            request(app).post("/users/new").send(input),
+          ),
+        );
+      },
+    );
+
+    when(
+      "new users attempt to register with already taken usernames",
+      async (table) => {
+        type Row = {
+          firstName: string;
+          lastName: string;
+          username: string;
+          email: string;
+        };
+        const newUserInputs: CreateUserInput[] = table.map((row: Row) =>
+          new CreateUserInputBuilder()
+            .withFirstName(row.firstName)
+            .withLastName(row.lastName)
+            .withEmail(row.email)
+            .withUsername(row.username)
+            .build(),
+        );
+        createUserResponses = await Promise.all(
+          newUserInputs.map((input) =>
+            request(app).post("/users/new").send(input),
+          ),
+        );
+      },
+    );
+
+    then(
+      "they see an error notifying them that the username has already been taken",
+      () => {
+        for (const response of createUserResponses) {
+          expect(response.status).toBe(409);
+          expect(response.body.success).toBeFalsy();
+          expect(response.body.error).toBeDefined();
+        }
+      },
+    );
+
+    and("they should not have been sent access to account details", () => {
+      for (const response of createUserResponses) {
+        expect(response.body.data).toBeUndefined();
+      }
+    });
+  });
 });

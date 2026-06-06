@@ -1,0 +1,13 @@
+{
+  "name": "dddforum",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": ["backend", "frontend", "shared"],
+  "scripts": {
+    "clean": "npm run clean --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

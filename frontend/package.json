@@ -1,5 +1,5 @@
 {
-  "name": "dddforum-frontend",
+  "name": "@dddforum/frontend",
   "private": true,
   "version": "0.0.0",
   "type": "module",

@@ -47,7 +47,7 @@ export async function createNew(req: Request, res: Response): Promise<void> {
 
   try {
     const user = await userModel.createUser({ email, username, firstName, lastName });
-    res.status(201).json(toPublicUser(user));
+    res.status(201).json({ success: true, error: {}, data: toPublicUser(user) });
   } catch (error) {
     if (userModel.isUniqueConstraintError(error)) {
       res.status(409).json({ error: Errors.EmailAlreadyInUse, data: undefined, success: false });

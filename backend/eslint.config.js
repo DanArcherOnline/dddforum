@@ -19,6 +19,7 @@ module.exports = [
     rules: {
       ...typescriptEslint.configs.recommended.rules,
       ...jestPlugin.configs.recommended.rules,
+      'jest/no-standalone-expect': ['error', { additionalTestBlockFunctions: ['defineFeature'] }],
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     },
   },

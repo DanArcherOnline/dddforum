@@ -7,8 +7,9 @@ import express, {
 import { prisma } from "./database/prismaClient";
 import { postRoutes } from "./routes/postRoutes";
 import { userRoutes } from "./routes/userRoutes";
+import { marketingRoutes } from "./routes/marketingRoutes";
 
-const app = express();
+export const app = express();
 
 const corsOptions: cors.CorsOptions =
   process.env.NODE_ENV === "production"
@@ -51,6 +52,7 @@ if (process.env.NODE_ENV !== "production") {
 
 app.use(postRoutes);
 app.use(userRoutes);
+app.use(marketingRoutes);
 
 app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   console.error(err);
@@ -88,4 +90,6 @@ async function start(): Promise<void> {
   });
 }
 
-void start();
+if (require.main === module) {
+  void start();
+}

@@ -7,7 +7,10 @@ import { CreateUserInput } from "@dddforum/shared/src/api/users";
 import { CreateUserInputBuilder } from "../builders/CreateUserInputBuilder";
 
 const feature = loadFeature(
-  path.join(__dirname, "../../../../shared/tests/features/registration.feature")
+  path.join(
+    __dirname,
+    "../../../../shared/tests/features/registration.feature",
+  ),
 );
 
 afterAll(async () => {
@@ -42,7 +45,7 @@ defineFeature(feature, (test) => {
         addEmailToListResponse = await request(app)
           .post("/marketing/new")
           .send({ email: createUserInput.email });
-      }
+      },
     );
 
     then("I should be granted access to my account", async () => {
@@ -85,7 +88,7 @@ defineFeature(feature, (test) => {
         createUserResponse = await request(app)
           .post("/users/new")
           .send(createUserInput);
-      }
+      },
     );
 
     then("I should be granted access to my account", async () => {
@@ -103,6 +106,37 @@ defineFeature(feature, (test) => {
     and("I should not expect to receive marketing emails", () => {
       expect(createUserResponse.status).toBe(201);
       expect(marketingEmailAdded).toBe(false);
+    });
+  });
+
+  test("Invalid or missing registration details", ({
+    given,
+    when,
+    then,
+    and,
+  }) => {
+    let invalidUserInput: Partial<CreateUserInput>;
+
+    given("I am a new user", () => {
+      invalidUserInput = { firstName: "John" };
+    });
+
+    when("I register with invalid account details", async () => {
+      createUserResponse = await request(app)
+        .post("/users/new")
+        .send(invalidUserInput);
+    });
+
+    then("I should see an error notifying me that my input is invalid", () => {
+      const { success, error } = createUserResponse.body;
+      expect(createUserResponse.status).toBe(400);
+      expect(success).toBeFalsy();
+      expect(error).toBeDefined();
+    });
+
+    and("I should not have been sent access to account details", () => {
+      const { data } = createUserResponse.body;
+      expect(data).toBeUndefined();
     });
   });
 });

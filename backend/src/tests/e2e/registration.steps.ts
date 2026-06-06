@@ -63,4 +63,46 @@ defineFeature(feature, (test) => {
       expect(success).toBeTruthy();
     });
   });
+
+  test("Successful registration without marketing emails accepted", ({
+    given,
+    when,
+    then,
+    and,
+  }) => {
+    let createUserInput: CreateUserInput;
+    let marketingEmailAdded = false;
+
+    given("I am a new user", async () => {
+      createUserInput = new CreateUserInputBuilder()
+        .withAllRandomDetails()
+        .build();
+    });
+
+    when(
+      "I register with valid account details declining marketing emails",
+      async () => {
+        createUserResponse = await request(app)
+          .post("/users/new")
+          .send(createUserInput);
+      }
+    );
+
+    then("I should be granted access to my account", async () => {
+      const { data, success, error } = createUserResponse.body;
+
+      expect(success).toBeTruthy();
+      expect(error).toEqual({});
+      expect(data!.id).toBeDefined();
+      expect(data!.email).toEqual(createUserInput.email);
+      expect(data!.firstName).toEqual(createUserInput.firstName);
+      expect(data!.lastName).toEqual(createUserInput.lastName);
+      expect(data!.username).toEqual(createUserInput.username);
+    });
+
+    and("I should not expect to receive marketing emails", () => {
+      expect(createUserResponse.status).toBe(201);
+      expect(marketingEmailAdded).toBe(false);
+    });
+  });
 });

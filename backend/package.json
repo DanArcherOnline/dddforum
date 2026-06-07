@@ -22,10 +22,10 @@
     "test:e2e:dev": "jest --config jest.config.e2e.ts --watch",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "db:up": "docker compose up -d || docker start dddforum-postgres",
+    "db:up": "docker start dddforum-postgres 2>/dev/null || docker compose up -d",
     "db:down": "docker compose down",
     "db:migrate": "prisma migrate deploy",
-    "db:setup": "(docker compose up -d --wait || docker start dddforum-postgres) && npm run db:migrate",
+    "db:setup": "(docker start dddforum-postgres 2>/dev/null || docker compose up -d --wait) && npm run db:migrate",
     "db:reset": "prisma migrate reset --force",
     "db:seed": "ts-node prisma/seed.ts",
     "postinstall": "prisma generate"

@@ -5,9 +5,17 @@ import express, {
   type Response,
 } from "express";
 import { prisma } from "./database/prismaClient";
-import { postRoutes } from "./routes/postRoutes";
-import { userRoutes } from "./routes/userRoutes";
-import { marketingRoutes } from "./routes/marketingRoutes";
+import { UserDatabase } from "./database/userDatabase";
+import { PostsDatabase } from "./database/postsDatabase";
+import { ContactListAPIStub } from "./modules/marketing/contactListAPI";
+import { TransactionalEmailAPI } from "./modules/notifications/transactionalEmailAPI";
+import { UserService } from "./modules/users/userService";
+import { PostsService } from "./modules/posts/postsService";
+import { MarketingService } from "./modules/marketing/marketingService";
+import { UserController } from "./modules/users/userController";
+import { PostsController } from "./modules/posts/postsController";
+import { MarketingController } from "./modules/marketing/marketingController";
+import { errorHandler } from "./shared/errors";
 
 export const app = express();
 
@@ -31,7 +39,34 @@ const corsOptions: cors.CorsOptions =
 app.use(cors(corsOptions));
 app.use(express.json());
 
-function applyCorsFromRequest(req: Request, res: Response): void {
+if (process.env.NODE_ENV !== "production") {
+  const frontendOrigin = process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
+  app.get("/", (_req, res) => {
+    res.redirect(302, `${frontendOrigin}/`);
+  });
+}
+
+const userDatabase = new UserDatabase();
+const postsDatabase = new PostsDatabase();
+const contactListAPI = new ContactListAPIStub();
+const transactionalEmailAPI = new TransactionalEmailAPI();
+
+const userService = new UserService(userDatabase, transactionalEmailAPI);
+const postsService = new PostsService(postsDatabase);
+const marketingService = new MarketingService(contactListAPI);
+
+const userController = new UserController(userService, errorHandler);
+const postsController = new PostsController(postsService, errorHandler);
+const marketingController = new MarketingController(
+  marketingService,
+  errorHandler,
+);
+
+app.use("/users", userController.getRouter());
+app.use("/posts", postsController.getRouter());
+app.use("/marketing", marketingController.getRouter());
+
+app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   const rawOrigin = req.headers.origin;
   if (
     typeof rawOrigin === "string" &&
@@ -41,29 +76,7 @@ function applyCorsFromRequest(req: Request, res: Response): void {
     res.setHeader("Access-Control-Allow-Origin", rawOrigin);
     res.setHeader("Vary", "Origin");
   }
-}
-
-if (process.env.NODE_ENV !== "production") {
-  const frontendOrigin = process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
-  app.get("/", (_req, res) => {
-    res.redirect(302, `${frontendOrigin}/`);
-  });
-}
-
-app.use(postRoutes);
-app.use(userRoutes);
-app.use(marketingRoutes);
-
-app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
-  console.error(err);
-  applyCorsFromRequest(req, res);
-  if (!res.headersSent) {
-    res.status(500).json({
-      error: "ServerError",
-      data: undefined,
-      success: false,
-    });
-  }
+  errorHandler(err, req, res, _next);
 });
 
 const port = process.env.PORT || 3000;

@@ -7,7 +7,7 @@ export class DatabaseFixture {
       WHERE schemaname = 'public' AND tablename != '_prisma_migrations'
     `;
     await prisma.$executeRawUnsafe(
-      `TRUNCATE TABLE ${tables.map((t) => `"${t.tablename}"`).join(", ")} CASCADE`
+      `TRUNCATE TABLE ${tables.map((t) => `"${t.tablename}"`).join(", ")} RESTART IDENTITY CASCADE`
     );
   }
 }

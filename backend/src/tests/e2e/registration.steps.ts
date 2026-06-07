@@ -1,8 +1,9 @@
 import path from "path";
 import { loadFeature, defineFeature } from "jest-cucumber";
 import request, { Response } from "supertest";
-import { app } from "../../index";
 import { prisma } from "../../database/prismaClient";
+import { Config } from "../../shared/config";
+import { CompositionRoot } from "../../compositionRoot";
 import { CreateUserInput } from "@dddforum/shared/src/api/users";
 import { CreateUserInputBuilder } from "../builders/CreateUserInputBuilder";
 import { TextUtil } from "@dddforum/shared/src/utils/textUtils";
@@ -15,15 +16,21 @@ const feature = loadFeature(
   ),
 );
 
-afterAll(async () => {
-  await prisma.$disconnect();
-});
-
 const databaseFixture = new DatabaseFixture();
 
 defineFeature(feature, (test) => {
+  let composition: CompositionRoot;
+  const config = new Config("test:e2e");
   let createUserResponse: Response;
   let addEmailToListResponse: Response;
+
+  beforeAll(async () => {
+    composition = CompositionRoot.createCompositionRoot(config);
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
 
   beforeEach(async () => {
     await databaseFixture.resetDatabase();
@@ -46,11 +53,11 @@ defineFeature(feature, (test) => {
     when(
       "I register with valid account details accepting marketing emails",
       async () => {
-        createUserResponse = await request(app)
+        createUserResponse = await request(composition.getWebServer().getApplication())
           .post("/users/new")
           .send(createUserInput);
 
-        addEmailToListResponse = await request(app)
+        addEmailToListResponse = await request(composition.getWebServer().getApplication())
           .post("/marketing/new")
           .send({ email: createUserInput.email });
       },
@@ -93,7 +100,7 @@ defineFeature(feature, (test) => {
     when(
       "I register with valid account details declining marketing emails",
       async () => {
-        createUserResponse = await request(app)
+        createUserResponse = await request(composition.getWebServer().getApplication())
           .post("/users/new")
           .send(createUserInput);
       },
@@ -130,7 +137,7 @@ defineFeature(feature, (test) => {
     });
 
     when("I register with invalid account details", async () => {
-      createUserResponse = await request(app)
+      createUserResponse = await request(composition.getWebServer().getApplication())
         .post("/users/new")
         .send(invalidUserInput);
     });
@@ -164,7 +171,7 @@ defineFeature(feature, (test) => {
       );
       await Promise.all(
         existingUserInputs.map((input) =>
-          request(app).post("/users/new").send(input),
+          request(composition.getWebServer().getApplication()).post("/users/new").send(input),
         ),
       );
     });
@@ -172,7 +179,7 @@ defineFeature(feature, (test) => {
     when("new users attempt to register with those emails", async () => {
       createUserResponses = await Promise.all(
         existingUserInputs.map((existing) =>
-          request(app)
+          request(composition.getWebServer().getApplication())
             .post("/users/new")
             .send(
               new CreateUserInputBuilder()
@@ -227,7 +234,7 @@ defineFeature(feature, (test) => {
         );
         await Promise.all(
           existingUserInputs.map((input) =>
-            request(app).post("/users/new").send(input),
+            request(composition.getWebServer().getApplication()).post("/users/new").send(input),
           ),
         );
       },
@@ -252,7 +259,7 @@ defineFeature(feature, (test) => {
         );
         createUserResponses = await Promise.all(
           newUserInputs.map((input) =>
-            request(app).post("/users/new").send(input),
+            request(composition.getWebServer().getApplication()).post("/users/new").send(input),
           ),
         );
       },

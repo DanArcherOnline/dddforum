@@ -1,4 +1,4 @@
-import { prisma } from "./prismaClient";
+import { Database } from "./database";
 
 const postInclude = {
   votes: true,
@@ -10,8 +10,10 @@ const postInclude = {
   comments: true,
 } as const;
 
-export class PostsDatabase {
+export class PostsModel {
+  constructor(private db: Database) {}
+
   async getAllPosts() {
-    return prisma.post.findMany({ include: postInclude });
+    return this.db.getClient().post.findMany({ include: postInclude });
   }
 }

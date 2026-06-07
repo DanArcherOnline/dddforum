@@ -1,8 +1,8 @@
 import express from "express";
 import type { UserService } from "./userService";
 import type { ErrorHandler } from "../../shared/errors";
-import { CreateUserDTO } from "../../views/users/CreateUserDTO";
-import { UpdateUserDTO } from "../../views/users/UpdateUserDTO";
+import { CreateUserDTO } from "./CreateUserDTO";
+import { UpdateUserDTO } from "./UpdateUserDTO";
 import type { CreateUserResponse, GetUserResponse } from "@dddforum/shared/src/api/users";
 
 export class UserController {

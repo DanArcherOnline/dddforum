@@ -1,7 +1,7 @@
 import express from "express";
 import type { MarketingService } from "./marketingService";
 import type { ErrorHandler } from "../../shared/errors";
-import { AddEmailToListDTO } from "../../views/marketing/AddEmailToListDTO";
+import { AddEmailToListDTO } from "./AddEmailToListDTO";
 import type { AddEmailToListResponse } from "@dddforum/shared/src/api/marketing";
 
 export class MarketingController {

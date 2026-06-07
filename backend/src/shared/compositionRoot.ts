@@ -1,19 +1,19 @@
 import { type NextFunction, type Request, type Response } from "express";
 import { prisma } from "./database/prismaClient";
 import { Database } from "./database/database";
-import { UserModel } from "./database/userDatabase";
-import { PostsModel } from "./database/postsDatabase";
-import { ContactListAPIStub } from "./modules/marketing/contactListAPI";
-import { TransactionalEmailAPI } from "./modules/notifications/transactionalEmailAPI";
-import { UserService } from "./modules/users/userService";
-import { PostsService } from "./modules/posts/postsService";
-import { MarketingService } from "./modules/marketing/marketingService";
-import { UserController } from "./modules/users/userController";
-import { PostsController } from "./modules/posts/postsController";
-import { MarketingController } from "./modules/marketing/marketingController";
-import { errorHandler } from "./shared/errors";
-import { Config } from "./shared/config";
-import { WebServer } from "./shared/http/webServer";
+import { UserModel } from "../modules/users/userModel";
+import { PostsModel } from "../modules/posts/postsModel";
+import { ContactListAPIStub } from "../modules/marketing/contactListAPI";
+import { TransactionalEmailAPI } from "../modules/notifications/transactionalEmailAPI";
+import { UserService } from "../modules/users/userService";
+import { PostsService } from "../modules/posts/postsService";
+import { MarketingService } from "../modules/marketing/marketingService";
+import { UserController } from "../modules/users/userController";
+import { PostsController } from "../modules/posts/postsController";
+import { MarketingController } from "../modules/marketing/marketingController";
+import { errorHandler } from "./errors";
+import { Config } from "./config";
+import { WebServer } from "./http/webServer";
 
 export class CompositionRoot {
   private static instance: CompositionRoot | null = null;

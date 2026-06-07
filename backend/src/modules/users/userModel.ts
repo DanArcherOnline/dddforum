@@ -1,8 +1,8 @@
 import { randomBytes } from "crypto";
-import { Prisma } from "../generated/prisma/client";
-import type { User } from "../generated/prisma/client";
+import { Prisma } from "../../generated/prisma/client";
+import type { User } from "../../generated/prisma/client";
 import type { CreateUserInput, UpdateUserInput } from "@dddforum/shared/src/api/users";
-import { Database } from "./database";
+import { Database } from "../../shared/database/database";
 
 export class UserModel {
   constructor(private db: Database) {}

@@ -1,5 +1,5 @@
 import type { Comment, Post, User, Vote } from "../src/generated/prisma/client";
-import { prisma } from "../src/database/prismaClient";
+import { prisma } from "../src/shared/database/prismaClient";
 
 const initialUsers: User[] = [
   {

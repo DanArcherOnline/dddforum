@@ -1,4 +1,4 @@
-import type { PostsModel } from "../../database/postsDatabase";
+import type { PostsModel } from "./postsModel";
 
 function netVoteScore(votes: { voteType: string }[]): number {
   let score = 0;

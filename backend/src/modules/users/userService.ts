@@ -1,6 +1,6 @@
-import { toPublicUser } from "../../views/users/userView";
-import type { PublicUser } from "../../views/users/userView";
-import type { UserModel } from "../../database/userDatabase";
+import { toPublicUser } from "./userView";
+import type { PublicUser } from "./userView";
+import type { UserModel } from "./userModel";
 import type { CreateUserInput, UpdateUserInput } from "@dddforum/shared/src/api/users";
 import type { TransactionalEmailAPI } from "../notifications/transactionalEmailAPI";
 import {

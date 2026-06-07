@@ -1,4 +1,4 @@
-import { prisma } from "../../database/prismaClient";
+import { prisma } from "../../../src/shared/database/prismaClient";
 
 export class DatabaseFixture {
   async resetDatabase() {

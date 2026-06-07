@@ -1,18 +1,18 @@
 import path from "path";
 import { loadFeature, defineFeature } from "jest-cucumber";
 import request, { Response } from "supertest";
-import { prisma } from "../../database/prismaClient";
-import { Config } from "../../shared/config";
-import { CompositionRoot } from "../../compositionRoot";
+import { prisma } from "../../src/shared/database/prismaClient";
+import { Config } from "../../src/shared/config";
+import { CompositionRoot } from "../../src/shared/compositionRoot";
 import { CreateUserInput } from "@dddforum/shared/src/api/users";
-import { CreateUserInputBuilder } from "../builders/CreateUserInputBuilder";
+import { CreateUserInputBuilder } from "../support/builders/CreateUserInputBuilder";
 import { TextUtil } from "@dddforum/shared/src/utils/textUtils";
-import { DatabaseFixture } from "../fixtures/DatabaseFixture";
+import { DatabaseFixture } from "../support/fixtures/DatabaseFixture";
 
 const feature = loadFeature(
   path.join(
     __dirname,
-    "../../../../shared/tests/features/registration.feature",
+    "../../../shared/tests/features/registration.feature",
   ),
 );
 

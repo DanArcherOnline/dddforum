@@ -1,515 +1,267 @@
-# How & Why to Encapsulate Application Composition (using the Composition Root Pattern)
+# How to Design a Modular Monolith using Abstraction Principles
 
-\#composition
+\#verticalSlicing
 
 _Last updated: August 29th, 2024_
 
-_Topics: the composition root pattern, the singleton pattern, pivot points, the config pattern, polymorphism_
+_Topics: modular monoliths, abstraction, organization, shared modules, vision-role-goal-capability-feature, modules, deployable unit of code_
 
-_Major Topics: Design Patterns, Design Principles_
+_Major Topics: Design principles, architectural patterns, design patterns_
 
-Where are we so far?
+So far, we’ve characterized DDDForum and refactored to 4 tiers.
 
-You’ve gone ahead and characterized DDDForum. You’ve refactored to 4 tiers. It should be looking a lot more shapely now, putting everything we’ve learned thus far into practice.
+This shouldn’t have been too hard because we only have a few features.
 
-In this lesson, we’re going to return to the topic of composition and explore some vital improvements that make for flexible, dynamic testable code.
+But let’s be real, your actual codebase is just going to continue to expand and expand.
+
+It’s never this easy.
+
+Well, in my search for some semblance of _truth_ in terms of how to organize code properly, I can say that the Modular Monolith seems to be the most effective abstraction and metaphysics-based folder structure I’ve ever come across.
+
+Let’s examine this from a few angles and make sure we know how to put it into practice.
 
 ## Lesson goals
 
-Specifically, we will:
+Specifically, in this lesson we will cover:
 
-- learn the challenges you’ll face bootstrapping from a single location
-- recap what polymorphism is and why it’s so important to the way we compose our applications
-- learn how to use the composition root pattern to build dynamic runtime behaviour into the composition process
+- what is a modular monolith & why is it effective?
+- what are the typical folders for a modular monolith
+- how to maintain a modular monolith over time
 
-## The problem with bootstrapping
+## Final rant on why “package by infrastructure” doesn’t work
 
-Remember the idea of bootstrapping from the Classroom exercise?
+Refreshing your memory again — this is what **package by infrastructure looks like**.
 
-When we composed the entire application from a single entry point, sort of like one of those Russian dolls? Dependency injecting one dependency into another?
+And why doesn’t it work?
 
-```tsx
-import Server from "./server";
-import Database from "./database";
-import {
-  AssignmentsController,
-  ClassesController,
-  StudentsController,
-} from "./controllers";
-import {
-  AssignmentsService,
-  ClassesService,
-  StudentsService,
-} from "./services";
-import { errorHandler } from "./shared/errorsExceptionHandler";
-import { PrismaClient } from "@prisma/client";
+Guess.
 
-const prisma = new PrismaClient();
+Because it doesn’t adhere to the metaphysical laws of abstraction.
 
-const db = new Database(prisma);
+Yep. That’s it.
 
-const studentsService = new StudentsService(db);
-const classesService = new ClassesService(db);
-const assignmentsService = new AssignmentsService(db);
+Abstraction, goal achievement, problem solving — it all works a certain way. First in the mind, then stapling in who we’re helping, why, what they can do, and finally how.
 
-const studentsController = new StudentsController(
-  studentsService,
-  errorHandler
-);
-const classesController = new ClassesController(classesService, errorHandler);
-const assignmentsController = new AssignmentsController(
-  assignmentsService,
-  errorHandler
-);
-const server = new Server(
-  studentsController,
-  classesController,
-  assignmentsController
-);
+_Vision-Role-Goal-Capability-Feature-Scenario-Examples._
 
-export default server;
-```
+_Vision-Role-Goal-Capability-Feature-Scenario-Examples._
 
-Well, this is good and all when we’re just getting started, but the reality is it’s not sufficient for most scenarios.
+_Vision-Role-Goal-Capability-Feature-Scenario-Examples._
 
-Why not?
+Never forget this.
 
-Well, imagine we were **logging** all over our codebase? What if we had a `LoggingService` that, when we ran in development mode, logged to the console — and when in test or production, logged to a file or an external service? How do you configure that?
+And because you’ve got to _add, change, discover, understand, test, debug_ features, you want the ability to **quickly** find the _features_ in the codebase through conscious design.
 
-Or what about the fact that when we run our application in production, we use **all real services**, but when we run a test like the _High Value Unit Test_ with “test:unit”, we’d use **fake services**?
+And when we do **package a single deployable** unit of code this way (package by abstraction), we’re building a modular monolith.
 
-How do we get _dynamic runtime behaviour?_
+## Modular Monoliths: What & Why?
 
-Well, we _could_ have a bunch of “if env === production” statements throughout the codebase, or we could put ‘em all at the top of the bootstrap file.
+I’ll define it as a **(1)** **single deployable unit of code (2) packaged by abstraction**.
 
-```tsx
-if (env === 'production') {
-  database = new ProductionDatabase()  
-} else {
-  database = new FakeJsonTestDatabase()  
-}
-```
+### 1. Single deployable unit of code
 
-But that’s not nearly as clean or configurable as we want.
+A single deployable unit of code is what it sounds like.
 
-As a rule of thumb, if you ever see yourself doing something like this, what you’re _really_ looking for is probably **polymorphism**.
+Are we deploying an entire backend or an entire frontend or are we using something like Next and deploying both a backend and a frontend using templating?
 
-Let’s take a moment to re-remember how it works. Without saying it explicitly, we’ve been practicing it all over the place.
+Whatever it is we’re deploying, “is it modularized”? That’s the question
 
-## Remembering polymorphism
+### 2. Packaged by abstraction
 
-Okay so what is polymorphism exactly?
+If you’ve properly modularized your project, you’re going to spend a lot of time looking at folders that mimic the _capabilities_ and _features_, most likely.
 
-Polymorphism refers to the ability for an object to take multiple different shapes and behaviours, yet still fulfill a contract.
+For example, here are a few:
 
-Recall that this phase, the _Best Practice-First Phase_, is signified by a few major context shifts in the worldview that developers have when they approach their work.
+## The typical folders & structure of a modular monolith
 
-And the most major context shift is the adoption of **contracts** — **using Abstraction (What & How)** to derive what you create first theoretically, then physically.
+Typically, we’re dealing with **two** main levels.
 
-The very fact that we’re using an **acceptance test** and _implementing_ it on both the frontend and the backend **is an example of polymorphism**.
+- **level 1 = src & tests**
+- **level 2 = shared & modules (domain/capability modules)**
 
-How? Well, the abstraction notion of _What_ (ie: features) end up implemented on both frontend and backend in differing yet still completely valid ways.
+In level one, we split the main actions developers tend to do — _testing_ or _developing_ (note that this corresponds to the _Role-Goal_ aspect of Abstraction) — into two folders.
 
-### More real world uses for polymorphism
+At level two, we organize the way we achieve those goals — _Capability-Feature_ — the **how** part (your actual code).
 
-Everyone knows the _Animal-Dog-Cat_ examples of polymorphism, which isn’t all that useful when you learn about it. But you can probably now notice that the example _could_ be useful when approached within the context of a _Role-Goal-Capability-Feature_ perspective.
+### The domain/capability modules
 
-More realistic scenarios where we need polymorphism can be found in things like:
+Your domain/capability modules are where the action happens.
 
-- **Text Editor Theming**. You want your text editor to look like Nightrider with some cool 80’s themed colors. Or maybe you’re a disturbed corporate developer and for some reason you want a white text editor 😂  Well, the entire ability to **dynamically shift themes** is a polymorphic function. What varies is the _painting_.
-- **Designing Weapons**. What varies is the _behaviour_ of the weapon, which may include many varying aspects including the way the weapon is rendered, the rate in which it decreases an enemy’s HP, how much ammo it has (if it’s a _FirableWeapon_), so on and so forth. But it still conforms to the **contract** of a weapon. It’s still _Equippable, Renderable_. What varies are all these things.
+It’s the primary place you’ll work: where your use cases, controllers, DTOs, and all your infrastructure pertaining to a specific feature live.
 
-Now, those are more complex, hardcore applications of polymorphism, for sure. But bringing it back down to web development land, there are tons of scenarios where we need it.
+It’s the most valuable place in your codebase.
 
-The most obvious one _is_ application composition. Because if you want to design your application to be testable and flexible, it is **inherent that you design it with polymorphism**.
+Ideally, your test code mimics your production code
 
-### How application composition varies
+### The shared module
 
-Remember the Config Object I alluded to earlier? Remember the variance in Scripts/Actions + Environments?
+The shared module is where you place concerns that don’t really have anything to do with a specific **feature**. It’s where you place code that, by placing it in a _domain-capability_ module would actually hurt cohesion.
 
-```tsx
-export type Environment = "development" | "production" | "staging" | "ci";
+For example, in one of these folders, you’re likely to see the more abstract, infrastructural, core, tooling-based concerns.
 
-export type Script =
-  | "test:unit"
-  | "test:e2e"
-  | "start"
-  | "test:infra";
+Plenty of core utilities and base classes also end up here.
 
-export class Config {
-  env: Environment;
-  script: Script;
+## 3 tips for how to maintain a modular monolith over time
 
-  constructor(script: Script) {
-    this.env = (process.env.NODE_ENV as Environment) || "development";
-    this.script = script;
-  }
-}
-```
+How to get started?
 
-It tells us that we are either **running the app** in some **environment** or **testing the app** in some **environment**.
+Here are 3 tips.
 
-But the funny thing is, it’s that **combination** which has the possibility to completely change the way we build/compose our app.
+### Tip #1: Commit to following the contours of abstraction
 
-So as the principle goes, we’ve got **encapsulate what varies**.
+Get these folders set up and start organizing.
 
-And what varies is the **application composition itself**.
+That straightforward.
 
-So that’s why we use the Composition Root Pattern.
+However, you should know that you will **never make it perfect. You’re always going to be slightly out of integrity, so don’t get lost in over-organization**.
 
-## The Composition Root Pattern
+Aim for good enough.
 
-The Composition Root Pattern encapsulates application composition. In particular, there are five things you should know about it.
+### Tip #2: Embrace feature → shared coupling
 
-1. It composes the application
-2. It acts as the single entry point for running and testing
-3. It gives us direct access to the application objects
-4. It is a singleton
-5. It enables you to perform polymorphic application composition based on the combination of **Action/Script + Environment**.
+Some coupling is ok!
 
-Let’s discuss each.
+As I said, the shared folder exists for a reason. For example, if you come across code which is:
 
-### Composing the application
+- _database connectivity logic_
+- _infrastructural concerns_
+- _utility classes_
 
-The first and most important is that it acts as the place that we compose the application.
+Then feel free to see if you can decouple it out and move it.
 
-Here’s a brief example of how it could work, composing just the _users_ objects in addition to some of the _shared_ ones.
+### Tip #3: Limit (or restrict) feature → feature coupling
+
+Feature code is allowed to rely on stuff that’s **shared** but there’s a major flaw when we rely upon other **features**.
+
+For example, take this code which relies upon the `TransactionalEmailAPI`.
 
 ```tsx
-import { 
- WebServer, 
- UsersController, 
- UsersService, 
- Database, 
- ErrorHandler, 
- Config 
-} from ".";
+export class UsersService {
+  constructor(
+    private repository: UsersRepository,
+    private emailAPI: TransactionalEmailAPI,
+  ) {}
 
-export class CompositionRoot {
-  private static instance: CompositionRoot | null = null;
-  
-  private webServer: WebServer;
-  private dbConnection: Database;
-  private config: Config;
-  private errorHandler: ErrorHandler;
-  private usersService: UsersService;
-
-  public static createCompositionRoot(config: Config) {
-    if (!CompositionRoot.instance) {
-      CompositionRoot.instance = new this(config);
+  async createUser(userData: CreateUserCommand) {
+    const existingUserByEmail = await this.repository.findUserByEmail(
+      userData.email,
+    );
+    if (existingUserByEmail) {
+      throw new EmailAlreadyInUseException(userData.email);
     }
-    return CompositionRoot.instance;
-  }
 
-  private constructor(config: Config) {
-    this.config = config;
-    this.errorHandler = errorHandler;
-    this.dbConnection = this.createDBConnection();
-    this.usersService = this.createUserService();
-    this.webServer = this.createWebServer();
-  }
-
-  private getUsersService() {
-    return this.usersService;
-  }
-
-  private getErrorHandler() {
-    return this.errorHandler;
-  }
-
-  private createUserService() {
-    const dbConnection = this.getDBConnection();
-    return new UsersService(dbConnection);
-  }
-
-  private createControllers() {
-    const usersService = this.getUsersService();
-    const errorHandler = this.getErrorHandler();
-    const usersController = new UsersController(usersService, errorHandler);
-
-    return {
-      usersController,
-    };
-  }
-
-  private createDBConnection() {
-    const dbConnection = new Database();
-    if (!this.dbConnection) {
-      this.dbConnection = dbConnection;
+    const existingUserByUsername = await this.repository.findUserByUsername(
+      userData.username,
+    );
+    if (existingUserByUsername) {
+      throw new UsernameAlreadyTakenException(userData.username);
     }
-    return dbConnection;
-  }
+    
+    const validatedUser: ValidatedUser = {
+      ...userData.props,
+      password: TextUtil.createRandomText(10)
+    }
+    
+    const prismaUser = await this.repository.save(validatedUser);
 
-  getDBConnection() {
-    if (!this.dbConnection) this.createDBConnection();
-    return this.dbConnection;
-  }
-
-  createWebServer() {
-    const controllers = this.createControllers();
-    return new WebServer({ port: 3000, env: this.context }, controllers);
-  }
-
-  getWebServer() {
-    return this.webServer;
-  }
-}
-```
-
-In the constructor, we build all of the objects in sequence, similar to how we did it when we just bootstrapped everything by passing objects into each other to build up to our app, but here, we merely encapsulate that work.
-
-### Single entry point for running & testing
-
-Recall that this is the single entry point for both **testing** and **running the application**.
-
-To use it in your tests, you’d get access to it like this.
-
-```tsx
-defineFeature(feature, (test) => {
-  let composition: CompositionRoot
-  let config: Config = new Config("test:e2e");
-  
-
-  beforeAll(async () => {
-    composition = CompositionRoot.createCompositionRoot(config);
-    server = composition.getWebServer();
-    databaseFixture = new DatabaseFixture();
-    dbConnection = composition.getDBConnection();
-
-    await server.start();
-    await dbConnection.connect();
-  });
-```
-
-Notice that we use the **Config Object** to specify and pass in the options. That’s grand. With those options encapsulated, it gives us the ability to do interesting things with the way we compose the app — and to do so without a ton of if/else statements littered throughout our codebase.
-
-The second place you’ll use it is when you’re starting up your application
-
-_shared/bootstrap.ts_
-
-```tsx
-import { CompositionRoot } from "../compositionRoot";
-import { Config } from "../config";
-
-const config = new Config("start");
-
-const composition = CompositionRoot.createCompositionRoot(config);
-const webServer = composition.getWebServer();
-const dbConnection = composition.getDBConnection();
-
-export async function bootstrap() {
-  await dbConnection.connect();
-  await webServer.start();
-}
-
-export const app = webServer.getApplication();
-export const database = dbConnection;
-```
-
-### It gives us direct access to the application objects
-
-Notice in the previous code that we get access to the server and the database connection from the composition root. That’s awesome.
-
-```tsx
-defineFeature(feature, (test) => {
-  let composition: CompositionRoot
-  let config: Config = new Config("test:e2e");
-  
-
-  beforeAll(async () => {
-    composition = CompositionRoot.createCompositionRoot(config);
-    server = composition.getWebServer();
-    dbConnection = composition.getDBConnection();
-
-    await server.start();
-    await dbConnection.connect();
-  });
-```
-
-Not only is the API cleaner for our tests so we can start and stop the server before and after everything, but it forces us to encapsulate things that we often don’t encapsulate, like the server itself.
-
-For example, a lot of the time, your server might just look like this:
-
-```tsx
-app.start(port)
-```
-
-Instead, with composition, it forces you to really think about your objects — **all of them**.
-
-We’ve designed a server as thus.
-
-**_shared/http/server.ts_**
-
-```tsx
-import express from "express";
-import cors from "cors";
-import { Server } from "http";
-import { 
-  ProcessService 
-} from "@dddforum/backend/src/shared/processes/processService";
-
-interface WebServerConfig {
-  port: number;
-  env: string;
-}
-
-export class WebServer {
-  private express: express.Express;
-  private state: "stopped" | "started";
-  private instance: Server | undefined;
-
-  constructor(private config: WebServerConfig) {
-    this.state = "stopped";
-    this.express = express();
-    this.initializeServer();
-  }
-
-  private initializeServer() {
-    this.addMiddlewares();
-    this.express.use(cors());
-  }
-
-  private addMiddlewares() {
-    this.express.use(express.json());
-  }
-
-  public mountRouter(path: string, router: express.Router) {
-    this.express.use(path, router);
-  }
-
-  public getApplication() {
-    return this.express;
-  }
-
-  async start(): Promise<void> {
-    return new Promise((resolve, _reject) => {
-      ProcessService.killProcessOnPort(this.config.port, () => {
-        if (this.config.env === " test") {
-          resolve();
-        }
-        console.log("Starting the server");
-        this.instance = this.express.listen(this.config.port, () => {
-          console.log(`Server is running on port ${this.config.port}`);
-          this.state = "started";
-          resolve();
-        });
-      });
+    await this.emailAPI.sendMail({
+      to: validatedUser.email,
+      subject: "Your login details to DDDForum",
+      text: `Welcome to DDDForum. You can login with the following details </br>
+      email: ${validatedUser.email}
+      password: ${validatedUser.password}`,
     });
-  }
 
-  async stop() {
-    return new Promise((resolve, reject) => {
-      if (!this.instance) return reject("Server not started");
-      this.instance.close((err) => {
-        if (err) return reject("Error stopping the server");
-        this.state = "stopped";
-        return resolve("Server stopped");
-      });
-    });
+    return prismaUser;
   }
-
-  isStarted() {
-    return this.state === "started";
-  }
-}
 ```
 
-### Best designed as a Singleton
+At first glance, this might not appear to be such an issue, but I can tell you from experience that it _is_ and issue.
 
-You’ll notice that we don’t `new` up this object.
+What we’re seeing here is a form of _coupling_ where the _createUser_ feature relies upon the _sendVerificationEmail_ from the _notifications_ domain/module, even if not expressed properly.
 
-Why is that?
+Why is this a problem?
 
-Because it should be designed as a _Singleton_.
+Well, the code could fail **right after we save the user but never send the email verification**.
 
-What’s a singleton? It’s a type of object where you only ever have one instance of it.
+And now the system is in an inconsistent state.
 
-You typically do this using a static method like so:
+That’s what this small problem of coupling can do.
 
-```tsx
-class CompositionRoot {
-  private static instance: CompositionRoot | null = null;
-  ...
-  
-	public static createCompositionRoot(config: Config) {
-	  if (!CompositionRoot.instance) {
-	    CompositionRoot.instance = new this(config);
-	  }
-	  return CompositionRoot.instance;
-	}
-  ...
-}
-```
+Understand that the long-term solution is to introduce an event-based architecture to gain the ability to perform **Temporal Decoupling**, decoupling features from each other using events and transactions.
 
-Why is this important?
+We’re not there yet but we’ll explore this in _Pattern & Responsibility-First._
 
-Well, you don’t want to accidentally have multiple trees of your application. You don’t accidentally want to be running _two instances_ of everything.
+For now, continue to couple so we can press forward.
 
-By designing it as a singleton here, if you use the Composition Root pattern from elsewhere multiple times, you’ll get the same instance.
+## Why is this effective?
 
-Really key.
+### Reason #1: Makes everything obvious
 
-### Enables Polymorphic Application Behaviour Based on the Action/Script + Environment
+The biggest reason? With a cohesive structure like this, it is obvious where to find, add, change, test code and so on.
 
-And finally, the main reason why we use it in the first place, is because we gain the ability to do polymorphism at the central **pivot point** — the application composition — the place we create objects and wire everything up.
+### Reason #2: Limits coupling between modules (or at least makes it obvious)
 
-Where’s the polymorphic behaviour?
+When you do this work, it’s hard to unsee the coupling.
 
-Take a look.
+If you’ve never done this before, it’s a long way from just writing whatever you want in Express controllers.
 
-For example, later on in “Advanced Testing”, we're going to write _High Value Unit Tests_ and we’ll need to swap out the database for a fake one so we keep our code pure.
+### Reason #3: Maximizes the ability to split code into new deployable units
 
-For example:
+When you minimize coupling, you maximize your ability to split code into new deployable units.
 
-```tsx
-private createDBConnection() {
-  if(this.shouldBuildFakeRepository()) {
-    return new FakeDatabase();
-  }
-  const dbConnection = new PrismaDatabase();
-  if (!this.dbConnection) {
-    this.dbConnection = dbConnection;
-  }
-  return dbConnection;
-}
+For example, it may be the case that your _forum_ aspect of your app actually gets a lot more traffic than the _chatroom_ does.
 
-private shouldBuildFakeRepository() {
-  return (
-    this.config.getScript() === "test:unit" ||
-    this.config.getEnvironment() === "development"
-  );
-}
-```
-
-That’s it. That’s the magic.
-
-You don’t have to do this _yet_, but you will.
-
-Don’t under estimate how powerful this pattern is.
-
-## Your Turn!
-
-Boom - now you know how it works.
-
-So go on and set it up now, composing together your application from a new root object.
-
-For the submodule assignment, continue forward once:
-
-✅ You’ve refactored to use a composition root instead
-
-✅ You’re using the composition root in:
-
-- All your tests
-- Your bootstrap location for when you run “start” 
+With decoupling as a foresight, in theory, you can split your application into multiple deployable units and vertically scale to handle traffic requirements.
 
 ## FAQ
 
-### “This looks like it’s going to grow huge!”
+### “Is it a modular monolith if I run two separate parts of the application with different scripts?”
 
-Yes, it definitely will. And we’ll talk about this in a couple lessons from this one. But for now, don’t worry. Press on and set it up. We’ll talk about how to modularize it later.
+So for example, if you’re deploying half of the application, like — _forum, users, notifications_ on one box, _admin_ on another box, and _chatroom_ on another — for understandability, maintainability, and keeping services decoupled, you likely want a design similar to this:
+
+_monorepo_
+
+- _dddforum (forum, users, marketing, notifications) — service (deployable unit of code)_
+- _admin — service (deployable unit of code)_
+- _chatroom — service (deployable unit of code)_
+- _shared — (not deployed, shared across all, contains acceptance tests & types)_
+
+This works because if you want to split more services out over time, if you’ve kept your coupling between modules to a minimum, you’ll limit the pain of doing so, turning it into its own package and deployable unit.
+
+This gets ever increasingly complex with microservices, serverless, containers, orchestration, and so on — we’re trying to master the foundation that enables a fluid approach to these concerns.
+
+This is the foundation.
+
+Perhaps you can see that modular monoliths are more about **strategy** than anything else.
+
+Makes sense why the Vaughn Vernon book is titled “_Strategic_ Monoliths and Microservices”.
+
+### “Is a frontend application a modular monolith? “
+
+Well, it’s a single deployable unit of code, but have you modularized it using abstraction?
+
+Can you split it out into entirely separate _npm packages_ in your _monorepo_?
+
+Do you _want_ to?
+
+Some companies assign teams to specific pages or _components_ in the UI.
+
+If you’re just getting started, you probably don’t need to think about this, but there are many legitimate reasons and ways to split a frontend.
+
+## Your Turn!
+
+Once you’ve split all the abstractions into 4 tiers, shift your focus to making sure each abstraction you’ve created is housed correctly.
+
+You’ll be in good shape if it shares similarities to this.
+
+For the submodule assignment, continue forward once:
+
+✅ **🔘** With my backend code safely characterized and held in place with E2E tests, I have used package by abstraction to organize my production code into a modular monolith
 
 ## Summary
 
-- The composition root encapsulates what varies — and what tends to vary is the application composition itself; it gives us the flexibility of dynamic runtime behaviour.
-- The two key places we use composition to construct the application are when we run our **tests** and when we **start the application**.
-- It’s typically best to design the composition as singletons so we maintain a single composition root at all times.
+- A modular monolith is a well-packaged deployable unit of code.
+- Using modules helps you keep your features decoupled.
+- The benefits of decoupling features are better organization, scaling, and maintaining the ability to evolve to an event-based architecture, then eventually micro-services
+- Make use of the shared folder + modules folder architectural pattern.

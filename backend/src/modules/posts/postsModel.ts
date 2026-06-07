@@ -1,4 +1,4 @@
-import { Database } from "./database";
+import { Database } from "../../shared/database/database";
 
 const postInclude = {
   votes: true,

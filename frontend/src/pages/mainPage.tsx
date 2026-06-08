@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Layout } from "../components/layout";
-import { PostsList, type Post } from "../components/postsList";
+import { PostsList } from "../components/postsList";
 import { PostsViewSwitcher } from "../components/postsViewSwitcher";
-import { getPopularPosts } from "../network/getPopularPosts";
+import { api } from "../api/index";
+import type { PostDTO } from "@dddforum/shared/src/api/posts";
 
 export function MainPage() {
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<PostDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,9 +17,14 @@ export function MainPage() {
       setLoading(true);
       setError(null);
       try {
-        const nextPosts = await getPopularPosts();
+        const response = await api.posts.getPopularPosts();
         if (!cancelled) {
-          setPosts(nextPosts);
+          if (!response.success) {
+            setError("Could not load posts.");
+            setPosts([]);
+          } else {
+            setPosts(response.data.posts);
+          }
         }
       } catch {
         if (!cancelled) {

@@ -6,20 +6,20 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { PublicUser } from "../registration/types";
+import type { User } from "../registration/types";
 
 type UserSessionContextValue = {
-  user: PublicUser | null;
-  setUser: (user: PublicUser) => void;
+  user: User | null;
+  setUser: (user: User) => void;
   clearUser: () => void;
 };
 
 const UserSessionContext = createContext<UserSessionContextValue | null>(null);
 
 export function UserSessionProvider({ children }: { children: ReactNode }) {
-  const [user, setUserState] = useState<PublicUser | null>(null);
+  const [user, setUserState] = useState<User | null>(null);
 
-  const setUser = useCallback((next: PublicUser) => {
+  const setUser = useCallback((next: User) => {
     setUserState(next);
   }, []);
 

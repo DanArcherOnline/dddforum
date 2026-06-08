@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { RegistrationInput } from "./types";
+import type { CreateUserInput } from "./types";
 
 const registrationSchema = z.object({
   email: z.string().trim().min(1, "Email is required.").email("Enter a valid email."),
@@ -12,17 +12,17 @@ const registrationSchema = z.object({
 });
 
 export type ValidateRegistrationResult =
-  | { ok: true; data: RegistrationInput }
-  | { ok: false; message: string };
+  | { success: true }
+  | { success: false; errorMessage: string };
 
 export function validateRegistrationInput(
-  input: RegistrationInput,
+  input: CreateUserInput,
 ): ValidateRegistrationResult {
   const result = registrationSchema.safeParse(input);
   if (result.success) {
-    return { ok: true, data: result.data };
+    return { success: true };
   }
-  const message =
+  const errorMessage =
     result.error.issues[0]?.message ?? "Please check your input.";
-  return { ok: false, message };
+  return { success: false, errorMessage };
 }

@@ -7,9 +7,10 @@ export class SharedModule {
   private dbConnection: Database;
   private webServer: WebServer;
 
-  private constructor(private config: Config) {
+  private constructor(config: Config) {
     this.dbConnection = new Database(prisma);
-    this.webServer = new WebServer({ port: Number(process.env.PORT) || 3000, env: config.env });
+    const port = config.script === "test:e2e" ? 3001 : Number(process.env.PORT) || 3000;
+    this.webServer = new WebServer({ port, env: config.env });
   }
 
   static build(config: Config) {

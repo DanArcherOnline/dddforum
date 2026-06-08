@@ -1,3 +1,5 @@
+import { APIResponse, GenericErrors } from "./types";
+
 export interface VoteDTO {
   id: number;
   voteType: string;
@@ -30,15 +32,26 @@ export interface PostDTO {
   title: string;
   content: string;
   postType: string;
-  dateCreated: Date;
+  dateCreated: string;
   memberId: number;
   memberPostedBy: PostMemberDTO;
   votes: VoteDTO[];
   comments: CommentDTO[];
 }
 
-export interface GetPopularPostsResponse {
-  success: boolean;
-  data: { posts: PostDTO[] };
-  error: undefined;
-}
+export type GetPopularPostsResponse = APIResponse<{ posts: PostDTO[] }, GenericErrors>;
+
+export const createPostsAPI = (apiURL: string) => {
+  return {
+    getPopularPosts: async (): Promise<GetPopularPostsResponse> => {
+      try {
+        const successResponse = await fetch(`${apiURL}/posts/popular`);
+        if (!successResponse.ok) throw successResponse;
+        return await successResponse.json() as GetPopularPostsResponse;
+      } catch (err) {
+        // @ts-ignore
+        return await err.json() as GetPopularPostsResponse;
+      }
+    },
+  };
+};

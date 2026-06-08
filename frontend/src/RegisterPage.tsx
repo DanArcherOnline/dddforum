@@ -4,8 +4,8 @@ import { toast } from "sonner";
 import { RegistrationForm } from "./components/RegistrationForm";
 import { Layout } from "./components/layout";
 import { useUserSession } from "./context/UserSessionContext";
-import { registerUser } from "./network/registerUser";
-import type { RegistrationInput } from "./registration/types";
+import { api } from "./api/index";
+import type { CreateUserInput } from "./registration/types";
 import { validateRegistrationInput } from "./registration/validateRegistrationInput";
 
 export const RegisterPage = () => {
@@ -13,6 +13,11 @@ export const RegisterPage = () => {
   const { setUser } = useUserSession();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const spinner = {
+    activate: () => setIsSubmitting(true),
+    deactivate: () => setIsSubmitting(false),
+  };
 
   useEffect(
     () => () => {
@@ -23,26 +28,51 @@ export const RegisterPage = () => {
     [],
   );
 
-  const handleSubmitRegistrationForm = async (input: RegistrationInput) => {
-    const validation = validateRegistrationInput(input);
-    if (!validation.ok) {
-      toast.error(validation.message);
-      return;
+  const handleSubmitRegistrationForm = async (input: CreateUserInput) => {
+    // Validate the form
+    const validationResult = validateRegistrationInput(input);
+
+    // If the form is invalid
+    if (!validationResult.success) {
+      // Show an error toast (for invalid input)
+      return toast.error(validationResult.errorMessage);
     }
 
-    setIsSubmitting(true);
+    // If the form is valid
+    // Start loading spinner
+    spinner.activate();
     try {
-      const user = await registerUser(validation.data);
-      setUser(user);
-      toast.success("Account created successfully.");
-      redirectTimerRef.current = setTimeout(() => {
-        navigate("/");
-      }, 3000);
-    } catch (error) {
-      console.error(error);
-      toast.error("Something went wrong. Please try again.");
-    } finally {
-      setIsSubmitting(false);
+      // Make API call
+      const response = await api.users.register(input);
+      if (!response.success) {
+        switch (response.error.code) {
+          case "EmailAlreadyInUse":
+            return toast.error("This email is already in use. Perhaps you want to log in?");
+          case "UsernameAlreadyTaken":
+            return toast.error("Please try a different username, this one is already taken.");
+          case "ValidationError":
+            // We could further improve this with more refined types
+            // to specify which form field was invalid.
+            return toast.error(response.error.message);
+          case "ServerError":
+          default:
+            return toast.error("Some backend error occurred");
+        }
+      }
+
+      setUser(response.data);
+      // Stop the loading spinner
+      spinner.deactivate();
+      // Show the toast
+      toast("Success! Redirecting home.");
+      // In 3 seconds, redirect to the main page
+      redirectTimerRef.current = setTimeout(() => { navigate("/"); }, 3000);
+    } catch (err) {
+      // If the call failed
+      // Stop the spinner
+      spinner.deactivate();
+      // Show the toast (for unknown error)
+      return toast.error("Some backend error occurred");
     }
   };
 
@@ -50,8 +80,8 @@ export const RegisterPage = () => {
     <Layout>
       <div>Create Account</div>
       <RegistrationForm
-        onSubmit={(submitted: RegistrationInput) =>
-          handleSubmitRegistrationForm(submitted)
+        onSubmit={(input: CreateUserInput) =>
+          handleSubmitRegistrationForm(input)
         }
         isSubmitting={isSubmitting}
       />

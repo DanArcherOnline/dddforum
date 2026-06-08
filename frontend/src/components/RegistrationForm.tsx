@@ -1,8 +1,8 @@
 import { type FormEvent, useState } from "react";
-import type { RegistrationInput } from "../registration/types";
+import type { CreateUserInput } from "../registration/types";
 
 type RegistrationFormProps = {
-  onSubmit: (input: RegistrationInput) => void;
+  onSubmit: (input: CreateUserInput) => void;
   isSubmitting: boolean;
 };
 

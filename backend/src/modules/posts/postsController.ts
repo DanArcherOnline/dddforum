@@ -33,8 +33,12 @@ export class PostsController {
     next: express.NextFunction,
   ) => {
     try {
-      const posts = await this.postsService.getPopularPosts();
-      const response: GetPopularPostsResponse = { error: undefined, data: { posts }, success: true };
+      const prismaPosts = await this.postsService.getPopularPosts();
+      const posts = prismaPosts.map((p) => ({
+        ...p,
+        dateCreated: p.dateCreated.toISOString(),
+      }));
+      const response: GetPopularPostsResponse = { error: {}, data: { posts }, success: true };
       res.json(response);
     } catch (error) {
       next(error);

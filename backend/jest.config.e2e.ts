@@ -2,7 +2,7 @@ import type { Config } from 'jest';
 
 const config: Config = {
   transform: {
-    '^.+\\.ts?$': 'ts-jest',
+    '^.+\\.ts?$': ['ts-jest', { tsconfig: 'tests/tsconfig.json' }],
   },
   testEnvironment: 'node',
   testMatch: ['**/tests/features/**/*.steps.ts'],

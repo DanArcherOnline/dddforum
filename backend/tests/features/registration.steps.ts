@@ -1,10 +1,11 @@
 import path from "path";
 import { loadFeature, defineFeature } from "jest-cucumber";
-import request, { Response } from "supertest";
 import { prisma } from "../../src/shared/database/prismaClient";
 import { Config } from "../../src/shared/config";
 import { CompositionRoot } from "../../src/shared/compositionRoot";
-import { CreateUserInput } from "@dddforum/shared/src/api/users";
+import { CreateUserInput, CreateUserResponse } from "@dddforum/shared/src/api/users";
+import { AddEmailToListResponse } from "@dddforum/shared/src/api/marketing";
+import { APIFixture } from "../support/fixtures/APIFixture";
 import { CreateUserInputBuilder } from "../support/builders/CreateUserInputBuilder";
 import { TextUtil } from "@dddforum/shared/src/utils/textUtils";
 import { DatabaseFixture } from "../support/fixtures/DatabaseFixture";
@@ -17,18 +18,21 @@ const feature = loadFeature(
 );
 
 const databaseFixture = new DatabaseFixture();
+const apiClient = new APIFixture();
 
 defineFeature(feature, (test) => {
   let composition: CompositionRoot;
   const config = new Config("test:e2e");
-  let createUserResponse: Response;
-  let addEmailToListResponse: Response;
+  let response: CreateUserResponse;
+  let addEmailToListResponse: AddEmailToListResponse;
 
   beforeAll(async () => {
     composition = CompositionRoot.createCompositionRoot(config);
+    await composition.getWebServer().start();
   });
 
   afterAll(async () => {
+    await composition.getWebServer().stop();
     await prisma.$disconnect();
   });
 
@@ -53,18 +57,13 @@ defineFeature(feature, (test) => {
     when(
       "I register with valid account details accepting marketing emails",
       async () => {
-        createUserResponse = await request(composition.getWebServer().getApplication())
-          .post("/users/new")
-          .send(createUserInput);
-
-        addEmailToListResponse = await request(composition.getWebServer().getApplication())
-          .post("/marketing/new")
-          .send({ email: createUserInput.email });
+        response = await apiClient.users.register(createUserInput);
+        addEmailToListResponse = await apiClient.marketing.addEmailToList(createUserInput.email);
       },
     );
 
     then("I should be granted access to my account", async () => {
-      const { data, success, error } = createUserResponse.body;
+      const { data, success, error } = response;
 
       expect(success).toBeTruthy();
       expect(error).toEqual({});
@@ -73,11 +72,15 @@ defineFeature(feature, (test) => {
       expect(data!.firstName).toEqual(createUserInput.firstName);
       expect(data!.lastName).toEqual(createUserInput.lastName);
       expect(data!.username).toEqual(createUserInput.username);
+
+      // And the user exists (State Verification)
+      const getUserResponse = await apiClient.users.getUserByEmail(createUserInput.email);
+      const { data: getUserData } = getUserResponse;
+      expect(createUserInput.email).toEqual(getUserData!.email);
     });
 
     and("I should expect to receive marketing emails", () => {
-      const { success } = addEmailToListResponse.body;
-      expect(createUserResponse.status).toBe(201);
+      const { success } = addEmailToListResponse;
       expect(success).toBeTruthy();
     });
   });
@@ -100,14 +103,12 @@ defineFeature(feature, (test) => {
     when(
       "I register with valid account details declining marketing emails",
       async () => {
-        createUserResponse = await request(composition.getWebServer().getApplication())
-          .post("/users/new")
-          .send(createUserInput);
+        response = await apiClient.users.register(createUserInput);
       },
     );
 
     then("I should be granted access to my account", async () => {
-      const { data, success, error } = createUserResponse.body;
+      const { data, success, error } = response;
 
       expect(success).toBeTruthy();
       expect(error).toEqual({});
@@ -119,7 +120,6 @@ defineFeature(feature, (test) => {
     });
 
     and("I should not expect to receive marketing emails", () => {
-      expect(createUserResponse.status).toBe(201);
       expect(marketingEmailAdded).toBe(false);
     });
   });
@@ -137,27 +137,24 @@ defineFeature(feature, (test) => {
     });
 
     when("I register with invalid account details", async () => {
-      createUserResponse = await request(composition.getWebServer().getApplication())
-        .post("/users/new")
-        .send(invalidUserInput);
+      response = await apiClient.users.register(invalidUserInput as CreateUserInput);
     });
 
     then("I should see an error notifying me that my input is invalid", () => {
-      const { success, error } = createUserResponse.body;
-      expect(createUserResponse.status).toBe(400);
+      const { success, error } = response;
       expect(success).toBeFalsy();
       expect(error).toBeDefined();
     });
 
     and("I should not have been sent access to account details", () => {
-      const { data } = createUserResponse.body;
+      const { data } = response;
       expect(data).toBeUndefined();
     });
   });
 
   test("Account already created with email", ({ given, when, then, and }) => {
     let existingUserInputs: CreateUserInput[];
-    let createUserResponses: Response[];
+    let responses: CreateUserResponse[];
 
     given("a set of users already created accounts", async (table) => {
       type Row = { firstName: string; lastName: string; email: string };
@@ -170,25 +167,21 @@ defineFeature(feature, (test) => {
           .build(),
       );
       await Promise.all(
-        existingUserInputs.map((input) =>
-          request(composition.getWebServer().getApplication()).post("/users/new").send(input),
-        ),
+        existingUserInputs.map((input) => apiClient.users.register(input)),
       );
     });
 
     when("new users attempt to register with those emails", async () => {
-      createUserResponses = await Promise.all(
+      responses = await Promise.all(
         existingUserInputs.map((existing) =>
-          request(composition.getWebServer().getApplication())
-            .post("/users/new")
-            .send(
-              new CreateUserInputBuilder()
-                .withFirstName(TextUtil.createRandomText(10))
-                .withLastName(TextUtil.createRandomText(10))
-                .withEmail(existing.email)
-                .withUsername(TextUtil.createRandomText(10))
-                .build(),
-            ),
+          apiClient.users.register(
+            new CreateUserInputBuilder()
+              .withFirstName(TextUtil.createRandomText(10))
+              .withLastName(TextUtil.createRandomText(10))
+              .withEmail(existing.email)
+              .withUsername(TextUtil.createRandomText(10))
+              .build(),
+          ),
         ),
       );
     });
@@ -196,24 +189,23 @@ defineFeature(feature, (test) => {
     then(
       "they should see an error notifying them that the account already exists",
       () => {
-        for (const response of createUserResponses) {
-          expect(response.status).toBe(409);
-          expect(response.body.success).toBeFalsy();
-          expect(response.body.error).toBeDefined();
+        for (const r of responses) {
+          expect(r.success).toBeFalsy();
+          expect(r.error).toBeDefined();
         }
       },
     );
 
     and("they should not have been sent access to account details", () => {
-      for (const response of createUserResponses) {
-        expect(response.body.data).toBeUndefined();
+      for (const r of responses) {
+        expect(r.data).toBeUndefined();
       }
     });
   });
 
   test("Username already taken", ({ given, when, then, and }) => {
     let existingUserInputs: CreateUserInput[];
-    let createUserResponses: Response[];
+    let responses: CreateUserResponse[];
 
     given(
       "a set of users have already created their accounts with valid details",
@@ -233,9 +225,7 @@ defineFeature(feature, (test) => {
             .build(),
         );
         await Promise.all(
-          existingUserInputs.map((input) =>
-            request(composition.getWebServer().getApplication()).post("/users/new").send(input),
-          ),
+          existingUserInputs.map((input) => apiClient.users.register(input)),
         );
       },
     );
@@ -257,10 +247,8 @@ defineFeature(feature, (test) => {
             .withUsername(row.username)
             .build(),
         );
-        createUserResponses = await Promise.all(
-          newUserInputs.map((input) =>
-            request(composition.getWebServer().getApplication()).post("/users/new").send(input),
-          ),
+        responses = await Promise.all(
+          newUserInputs.map((input) => apiClient.users.register(input)),
         );
       },
     );
@@ -268,17 +256,16 @@ defineFeature(feature, (test) => {
     then(
       "they see an error notifying them that the username has already been taken",
       () => {
-        for (const response of createUserResponses) {
-          expect(response.status).toBe(409);
-          expect(response.body.success).toBeFalsy();
-          expect(response.body.error).toBeDefined();
+        for (const r of responses) {
+          expect(r.success).toBeFalsy();
+          expect(r.error).toBeDefined();
         }
       },
     );
 
     and("they should not have been sent access to account details", () => {
-      for (const response of createUserResponses) {
-        expect(response.body.data).toBeUndefined();
+      for (const r of responses) {
+        expect(r.data).toBeUndefined();
       }
     });
   });

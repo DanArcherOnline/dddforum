@@ -1,31 +1,15 @@
 import { Link } from "react-router-dom";
 import moment from "moment";
 import arrow from "../assets/arrow.svg";
+import type { PostDTO, VoteDTO } from "@dddforum/shared/src/api/posts";
 
-type Vote = {
-  id: number;
-  postId: number;
-  voteType: "Upvote" | "Downvote";
-};
-
-type Comment = Record<string, unknown>;
-
-export type Post = {
-  id: number;
-  title: string;
-  dateCreated: string;
-  memberPostedBy: { user: { username: string } };
-  comments: Comment[];
-  votes: Vote[];
-};
-
-function computeVoteCount(votes: Vote[]) {
+function computeVoteCount(votes: VoteDTO[]) {
   let count = 0;
   votes.forEach((v) => (v.voteType === "Upvote" ? count++ : count--));
   return count;
 }
 
-export function PostsList({ posts }: { posts: Post[] }) {
+export function PostsList({ posts }: { posts: PostDTO[] }) {
   return (
     <div className="posts-list">
       {posts.map((post) => (

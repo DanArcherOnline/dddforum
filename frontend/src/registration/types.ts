@@ -1,14 +1,8 @@
-export type RegistrationInput = {
-  email: string;
-  username: string;
-  firstName: string;
-  lastName: string;
-};
-
-export type PublicUser = {
-  id: number;
-  email: string;
-  username: string;
-  firstName: string;
-  lastName: string;
-};
+export type {
+  CreateUserInput,
+  User,
+  EmailAlreadyInUseError,
+  UsernameAlreadyTakenError,
+  CreateUserErrors,
+  CreateUserResponse,
+} from "@dddforum/shared/src/api/users";

@@ -12,9 +12,9 @@ export const errorHandler: ErrorHandler = (err, _req, res, _next) => {
   if (err instanceof AppException) {
     res
       .status(err.statusCode)
-      .json({ error: err.errorCode, data: undefined, success: false });
+      .json({ error: { code: err.errorCode }, data: undefined, success: false });
     return;
   }
   console.error(err);
-  res.status(500).json({ error: "ServerError", data: undefined, success: false });
+  res.status(500).json({ error: { code: "ServerError" }, data: undefined, success: false });
 };

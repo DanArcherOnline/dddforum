@@ -3,10 +3,10 @@ import { loadFeature, defineFeature } from "jest-cucumber";
 import { prisma } from "../../src/shared/database/prismaClient";
 import { Config } from "../../src/shared/config";
 import { CompositionRoot } from "../../src/shared/compositionRoot";
-import { CreateUserInput, CreateUserResponse } from "@dddforum/shared/src/api/users";
+import { CreateUserParams, CreateUserResponse } from "@dddforum/shared/src/api/users";
 import { AddEmailToListResponse } from "@dddforum/shared/src/api/marketing";
 import { APIFixture } from "../support/fixtures/APIFixture";
-import { CreateUserInputBuilder } from "../support/builders/CreateUserInputBuilder";
+import { CreateUserBuilder } from "../support/builders/CreateUserBuilder";
 import { TextUtil } from "@dddforum/shared/src/utils/textUtils";
 import { DatabaseFixture } from "../support/fixtures/DatabaseFixture";
 
@@ -46,10 +46,10 @@ defineFeature(feature, (test) => {
     then,
     and,
   }) => {
-    let createUserInput: CreateUserInput;
+    let createUserInput: CreateUserParams;
 
     given("I am a new user", async () => {
-      createUserInput = new CreateUserInputBuilder()
+      createUserInput = new CreateUserBuilder()
         .withAllRandomDetails()
         .build();
     });
@@ -91,11 +91,11 @@ defineFeature(feature, (test) => {
     then,
     and,
   }) => {
-    let createUserInput: CreateUserInput;
+    let createUserInput: CreateUserParams;
     let marketingEmailAdded = false;
 
     given("I am a new user", async () => {
-      createUserInput = new CreateUserInputBuilder()
+      createUserInput = new CreateUserBuilder()
         .withAllRandomDetails()
         .build();
     });
@@ -130,14 +130,14 @@ defineFeature(feature, (test) => {
     then,
     and,
   }) => {
-    let invalidUserInput: Partial<CreateUserInput>;
+    let invalidUserInput: Partial<CreateUserParams>;
 
     given("I am a new user", () => {
       invalidUserInput = { firstName: "John" };
     });
 
     when("I register with invalid account details", async () => {
-      response = await apiClient.users.register(invalidUserInput as CreateUserInput);
+      response = await apiClient.users.register(invalidUserInput as CreateUserParams);
     });
 
     then("I should see an error notifying me that my input is invalid", () => {
@@ -153,13 +153,13 @@ defineFeature(feature, (test) => {
   });
 
   test("Account already created with email", ({ given, when, then, and }) => {
-    let existingUserInputs: CreateUserInput[];
+    let existingUserInputs: CreateUserParams[];
     let responses: CreateUserResponse[];
 
     given("a set of users already created accounts", async (table) => {
       type Row = { firstName: string; lastName: string; email: string };
       existingUserInputs = table.map((row: Row) =>
-        new CreateUserInputBuilder()
+        new CreateUserBuilder()
           .withFirstName(row.firstName)
           .withLastName(row.lastName)
           .withEmail(row.email)
@@ -175,7 +175,7 @@ defineFeature(feature, (test) => {
       responses = await Promise.all(
         existingUserInputs.map((existing) =>
           apiClient.users.register(
-            new CreateUserInputBuilder()
+            new CreateUserBuilder()
               .withFirstName(TextUtil.createRandomText(10))
               .withLastName(TextUtil.createRandomText(10))
               .withEmail(existing.email)
@@ -204,7 +204,7 @@ defineFeature(feature, (test) => {
   });
 
   test("Username already taken", ({ given, when, then, and }) => {
-    let existingUserInputs: CreateUserInput[];
+    let existingUserInputs: CreateUserParams[];
     let responses: CreateUserResponse[];
 
     given(
@@ -217,7 +217,7 @@ defineFeature(feature, (test) => {
           email: string;
         };
         existingUserInputs = table.map((row: Row) =>
-          new CreateUserInputBuilder()
+          new CreateUserBuilder()
             .withFirstName(row.firstName)
             .withLastName(row.lastName)
             .withEmail(row.email)
@@ -239,8 +239,8 @@ defineFeature(feature, (test) => {
           username: string;
           email: string;
         };
-        const newUserInputs: CreateUserInput[] = table.map((row: Row) =>
-          new CreateUserInputBuilder()
+        const newUserInputs: CreateUserParams[] = table.map((row: Row) =>
+          new CreateUserBuilder()
             .withFirstName(row.firstName)
             .withLastName(row.lastName)
             .withEmail(row.email)

@@ -3,7 +3,7 @@ import { WebServer } from "../../shared/http/webServer";
 import { UserModel } from "./userModel";
 import { UserService } from "./userService";
 import { UserController } from "./userController";
-import { NotificationsModule } from "../notifications/notificationsModule";
+import { TransactionalEmailAPI } from "../notifications/transactionalEmailAPI";
 import { errorHandler } from "../../shared/errors";
 
 export class UsersModule {
@@ -12,20 +12,20 @@ export class UsersModule {
 
   private constructor(
     private dbConnection: Database,
-    private notificationsModule: NotificationsModule
+    private transactionalEmailAPI: TransactionalEmailAPI
   ) {
     this.userService = this.createUserService();
     this.userController = this.createUserController();
   }
 
-  static build(dbConnection: Database, notificationsModule: NotificationsModule) {
-    return new UsersModule(dbConnection, notificationsModule);
+  static build(dbConnection: Database, transactionalEmailAPI: TransactionalEmailAPI) {
+    return new UsersModule(dbConnection, transactionalEmailAPI);
   }
 
   private createUserService() {
     return new UserService(
       new UserModel(this.dbConnection),
-      this.notificationsModule.getTransactionalEmailAPI()
+      this.transactionalEmailAPI
     );
   }
 

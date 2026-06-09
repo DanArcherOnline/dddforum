@@ -5,7 +5,7 @@ import { RegistrationForm } from "./components/RegistrationForm";
 import { Layout } from "./components/layout";
 import { useUserSession } from "./context/UserSessionContext";
 import { api } from "./api/index";
-import type { CreateUserInput } from "./registration/types";
+import type { CreateUserParams } from "./registration/types";
 import { validateRegistrationInput } from "./registration/validateRegistrationInput";
 
 export const RegisterPage = () => {
@@ -28,7 +28,7 @@ export const RegisterPage = () => {
     [],
   );
 
-  const handleSubmitRegistrationForm = async (input: CreateUserInput) => {
+  const handleSubmitRegistrationForm = async (input: CreateUserParams) => {
     // Validate the form
     const validationResult = validateRegistrationInput(input);
 
@@ -80,7 +80,7 @@ export const RegisterPage = () => {
     <Layout>
       <div>Create Account</div>
       <RegistrationForm
-        onSubmit={(input: CreateUserInput) =>
+        onSubmit={(input: CreateUserParams) =>
           handleSubmitRegistrationForm(input)
         }
         isSubmitting={isSubmitting}

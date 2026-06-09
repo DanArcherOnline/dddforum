@@ -1,5 +1,5 @@
 export type {
-  CreateUserInput,
+  CreateUserParams,
   User,
   EmailAlreadyInUseError,
   UsernameAlreadyTakenError,

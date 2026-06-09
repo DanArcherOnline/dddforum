@@ -1,6 +1,6 @@
-import { APIResponse, GenericErrors } from "./types";
+import { APIResponse, GenericErrors, ServerError } from "./types";
 
-export type CreateUserInput = {
+export type CreateUserParams = {
   firstName: string;
   lastName: string;
   email: string;
@@ -29,12 +29,21 @@ export type CreateUserErrors =
   | EmailAlreadyInUseError
   | UsernameAlreadyTakenError;
 export type CreateUserResponse = APIResponse<User, CreateUserErrors>;
-export type GetUserByEmailResponse = APIResponse<User, GenericErrors>;
+
+export type UserNotFoundError = "UserNotFound";
+export type GetUserByEmailErrors = ServerError | UserNotFoundError;
+export type GetUserByEmailResponse = APIResponse<User, GetUserByEmailErrors>;
+export type GetUserErrors = GetUserByEmailErrors | CreateUserErrors;
 export type GetUserResponse = GetUserByEmailResponse;
+
+export type UserResponse = APIResponse<
+  CreateUserResponse | GetUserByEmailResponse | null,
+  GetUserErrors
+>;
 
 export const createUsersAPI = (apiURL: string) => {
   return {
-    register: async (input: CreateUserInput): Promise<CreateUserResponse> => {
+    register: async (input: CreateUserParams): Promise<CreateUserResponse> => {
       try {
         const successResponse = await fetch(`${apiURL}/users/new`, {
           method: "POST",

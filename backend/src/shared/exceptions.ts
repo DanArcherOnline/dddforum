@@ -9,7 +9,7 @@ export class AppException extends Error {
 
 export class UsernameAlreadyTakenException extends AppException {
   constructor() {
-    super(409, "UserNameAlreadyTaken");
+    super(409, "UsernameAlreadyTaken");
   }
 }
 

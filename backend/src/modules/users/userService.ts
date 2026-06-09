@@ -1,7 +1,7 @@
 import { toPublicUser } from "./userView";
 import type { PublicUser } from "./userView";
 import type { UserModel } from "./userModel";
-import type { CreateUserInput, UpdateUserInput } from "@dddforum/shared/src/api/users";
+import type { CreateUserParams, UpdateUserInput } from "@dddforum/shared/src/api/users";
 import type { TransactionalEmailAPI } from "../notifications/transactionalEmailAPI";
 import {
   EmailAlreadyInUseException,
@@ -15,7 +15,7 @@ export class UserService {
     private transactionalEmailAPI: TransactionalEmailAPI,
   ) {}
 
-  async createUser(input: CreateUserInput): Promise<PublicUser> {
+  async createUser(input: CreateUserParams): Promise<PublicUser> {
     const existingByUsername = await this.userModel.findByUsername(input.username);
     if (existingByUsername) throw new UsernameAlreadyTakenException();
 

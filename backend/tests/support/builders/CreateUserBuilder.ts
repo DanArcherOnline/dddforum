@@ -1,8 +1,8 @@
-import { CreateUserInput } from "@dddforum/shared/src/api/users";
+import { CreateUserParams } from "@dddforum/shared/src/api/users";
 import { TextUtil } from "@dddforum/shared/src/utils/textUtils";
 
-export class CreateUserInputBuilder {
-  private props: Partial<CreateUserInput>;
+export class CreateUserBuilder {
+  private props: Partial<CreateUserParams>;
 
   constructor() {
     this.props = {
@@ -41,7 +41,7 @@ export class CreateUserInputBuilder {
     return this;
   }
 
-  build(): CreateUserInput {
-    return this.props as CreateUserInput;
+  build(): CreateUserParams {
+    return this.props as CreateUserParams;
   }
 }

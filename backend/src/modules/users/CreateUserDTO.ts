@@ -1,7 +1,7 @@
-import type { CreateUserInput } from "@dddforum/shared/src/api/users";
+import type { CreateUserParams } from "@dddforum/shared/src/api/users";
 import { InvalidRequestBodyException } from "../../shared/exceptions";
 
-export class CreateUserDTO implements CreateUserInput {
+export class CreateUserDTO implements CreateUserParams {
   constructor(
     public readonly firstName: string,
     public readonly lastName: string,

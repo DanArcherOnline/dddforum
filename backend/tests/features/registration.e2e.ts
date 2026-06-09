@@ -10,11 +10,10 @@ import { CreateUserBuilder } from "../support/builders/CreateUserBuilder";
 import { TextUtil } from "@dddforum/shared/src/utils/textUtils";
 import { DatabaseFixture } from "../support/fixtures/DatabaseFixture";
 
+const sharedTestRoot = path.join(__dirname, "../../../shared/tests");
+
 const feature = loadFeature(
-  path.join(
-    __dirname,
-    "../../../shared/tests/features/registration.feature",
-  ),
+  path.join(sharedTestRoot, "features/registration.feature"),
 );
 
 const databaseFixture = new DatabaseFixture();

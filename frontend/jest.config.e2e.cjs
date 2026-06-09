@@ -1,8 +1,8 @@
 module.exports = {
   transform: {
-    '^.+\\.ts?$': ['ts-jest', { diagnostics: { ignoreCodes: ['TS151001'] } }],
+    '^.+\\.ts?$': ['ts-jest', { tsconfig: 'tests/tsconfig.json' }],
   },
   testEnvironment: 'node',
-  testMatch: ['**/src/tests/e2e/**/*.steps.ts'],
+  testMatch: ['**/tests/features/**/*.e2e.ts'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
 };

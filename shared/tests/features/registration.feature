@@ -3,6 +3,7 @@ Feature: Registration
   I want to register as a Member
   So that I can vote on posts, ask questions, and earn points for discounts.
 
+  @frontend
   Scenario: Successful registration with marketing emails accepted
 		Given I am a new user
 		When I register with valid account details accepting marketing emails
@@ -17,12 +18,14 @@ Feature: Registration
 		And I should not expect to receive marketing emails
 
   # Failure scenarios
+  @frontend
   Scenario: Invalid or missing registration details
     Given I am a new user
     When I register with invalid account details
     Then I should see an error notifying me that my input is invalid
     And I should not have been sent access to account details
 
+  @frontend
   Scenario: Account already created with email
     Given a set of users already created accounts
       | firstName | lastName | email             |

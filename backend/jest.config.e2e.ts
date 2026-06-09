@@ -5,7 +5,7 @@ const config: Config = {
     '^.+\\.ts?$': ['ts-jest', { tsconfig: 'tests/tsconfig.json' }],
   },
   testEnvironment: 'node',
-  testMatch: ['**/tests/features/**/*.steps.ts'],
+  testMatch: ['**/tests/features/**/*.e2e.ts'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
 };
 

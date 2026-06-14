@@ -1,13 +1,1 @@
-import { prisma } from "../../../src/shared/database/prismaClient";
-
-export class DatabaseFixture {
-  async resetDatabase() {
-    const tables = await prisma.$queryRaw<{ tablename: string }[]>`
-      SELECT tablename FROM pg_tables
-      WHERE schemaname = 'public' AND tablename != '_prisma_migrations'
-    `;
-    await prisma.$executeRawUnsafe(
-      `TRUNCATE TABLE ${tables.map((t) => `"${t.tablename}"`).join(", ")} RESTART IDENTITY CASCADE`
-    );
-  }
-}
+export { DatabaseFixture } from '@dddforum/shared/tests/support/fixtures/databaseFixture';

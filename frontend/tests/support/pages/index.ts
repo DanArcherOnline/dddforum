@@ -12,7 +12,7 @@ export interface App {
   notifications: AppNotifications;
 }
 
-export function createApplicationPageObject(pageDriver: PuppeteerPageDriver): App {
+export function createAppObject(pageDriver: PuppeteerPageDriver): App {
   return {
     pages: {
       registration: new RegistrationPage(pageDriver),

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { RegistrationForm } from "./components/RegistrationForm";
@@ -11,13 +11,7 @@ import { validateRegistrationInput } from "./registration/validateRegistrationIn
 export const RegisterPage = () => {
   const navigate = useNavigate();
   const { setUser } = useUserSession();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const spinner = {
-    activate: () => setIsSubmitting(true),
-    deactivate: () => setIsSubmitting(false),
-  };
 
   useEffect(
     () => () => {
@@ -28,21 +22,14 @@ export const RegisterPage = () => {
     [],
   );
 
-  const handleSubmitRegistrationForm = async (input: CreateUserParams) => {
-    // Validate the form
+  const handleSubmitRegistrationForm = async (input: CreateUserParams, allowMarketingEmails: boolean) => {
     const validationResult = validateRegistrationInput(input);
 
-    // If the form is invalid
     if (!validationResult.success) {
-      // Show an error toast (for invalid input)
       return toast.error(validationResult.errorMessage);
     }
 
-    // If the form is valid
-    // Start loading spinner
-    spinner.activate();
     try {
-      // Make API call
       const response = await api.users.register(input);
       if (!response.success) {
         switch (response.error.code) {
@@ -51,8 +38,6 @@ export const RegisterPage = () => {
           case "UsernameAlreadyTaken":
             return toast.error("Please try a different username, this one is already taken.");
           case "ValidationError":
-            // We could further improve this with more refined types
-            // to specify which form field was invalid.
             return toast.error(response.error.message);
           case "ServerError":
           default:
@@ -61,17 +46,9 @@ export const RegisterPage = () => {
       }
 
       setUser(response.data);
-      // Stop the loading spinner
-      spinner.deactivate();
-      // Show the toast
-      toast("Success! Redirecting home.");
-      // In 3 seconds, redirect to the main page
+      toast("Success! Redirecting home.", { id: "success-toast" });
       redirectTimerRef.current = setTimeout(() => { navigate("/"); }, 3000);
     } catch (err) {
-      // If the call failed
-      // Stop the spinner
-      spinner.deactivate();
-      // Show the toast (for unknown error)
       return toast.error("Some backend error occurred");
     }
   };
@@ -80,10 +57,9 @@ export const RegisterPage = () => {
     <Layout>
       <div>Create Account</div>
       <RegistrationForm
-        onSubmit={(input: CreateUserParams) =>
-          handleSubmitRegistrationForm(input)
+        onSubmit={(input: CreateUserParams, allowMarketingEmails: boolean) =>
+          handleSubmitRegistrationForm(input, allowMarketingEmails)
         }
-        isSubmitting={isSubmitting}
       />
     </Layout>
   );

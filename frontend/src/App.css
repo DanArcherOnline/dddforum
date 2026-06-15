@@ -113,13 +113,16 @@ body {
   display: inline-block;
 }
 
-#header-action-button a {
+#header-action-button a,
+#header-action-button button {
   background: #000;
   color: #fff;
   padding: 0.5rem 0.9rem;
   border-radius: 0.2rem;
   text-decoration: none;
   display: inline-block;
+  border: none;
+  cursor: pointer;
 }
 
 #title-container h1, h3 {

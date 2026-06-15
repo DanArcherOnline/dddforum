@@ -1,80 +1,67 @@
-import { type FormEvent, useState } from "react";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import type { CreateUserParams } from "../registration/types";
 
-type RegistrationFormProps = {
-  onSubmit: (input: CreateUserParams) => void;
-  isSubmitting: boolean;
-};
+interface RegistrationFormProps {
+  onSubmit: (formDetails: CreateUserParams, allowMarketingEmails: boolean) => void;
+}
 
-export function RegistrationForm({
-  onSubmit,
-  isSubmitting,
-}: RegistrationFormProps) {
+export const RegistrationForm = (props: RegistrationFormProps) => {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [allowMarketingEmails, setAllowMarketingEmails] = useState(false);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    onSubmit({ email, username, firstName, lastName });
+  const toggleAllowMarketingEmails = () => {
+    setAllowMarketingEmails(!allowMarketingEmails);
   };
 
-  const disabled = isSubmitting;
+  const handleSubmit = () => {
+    props.onSubmit({ email, username, firstName, lastName }, allowMarketingEmails);
+  };
 
   return (
-    <form className="registration-form" onSubmit={handleSubmit}>
-      <label className="registration-form-field">
-        <span>Email</span>
-        <input
-          type="email"
-          name="email"
-          autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          disabled={disabled}
-          required
-        />
-      </label>
-      <label className="registration-form-field">
-        <span>Username</span>
-        <input
-          type="text"
-          name="username"
-          autoComplete="username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          disabled={disabled}
-          required
-        />
-      </label>
-      <label className="registration-form-field">
-        <span>First name</span>
-        <input
-          type="text"
-          name="firstName"
-          autoComplete="given-name"
-          value={firstName}
-          onChange={(e) => setFirstName(e.target.value)}
-          disabled={disabled}
-          required
-        />
-      </label>
-      <label className="registration-form-field">
-        <span>Last name</span>
-        <input
-          type="text"
-          name="lastName"
-          autoComplete="family-name"
-          value={lastName}
-          onChange={(e) => setLastName(e.target.value)}
-          disabled={disabled}
-          required
-        />
-      </label>
-      <button type="submit" className="submit-button" disabled={disabled}>
-        {isSubmitting ? "Creating account…" : "Create account"}
+    <>
+      <input
+        className="registration email"
+        type="email"
+        placeholder="email"
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <input
+        className="registration username"
+        type="text"
+        placeholder="username"
+        onChange={(e) => setUsername(e.target.value)}
+      />
+      <input
+        className="registration first-name"
+        type="text"
+        placeholder="first name"
+        onChange={(e) => setFirstName(e.target.value)}
+      />
+      <input
+        className="registration last-name"
+        type="text"
+        placeholder="last name"
+        onChange={(e) => setLastName(e.target.value)}
+      />
+      <button
+        onClick={() => handleSubmit()}
+        className="registration submit-button"
+        type="submit"
+      >
+        Submit
       </button>
-    </form>
+      <input
+        className="registration marketing-emails"
+        type="checkbox"
+        checked={allowMarketingEmails}
+        onChange={() => toggleAllowMarketingEmails()}
+      />
+      Want to be notified about events &amp; discounts?
+      <Link to="/join">Already have an account? Login</Link>
+    </>
   );
-}
+};

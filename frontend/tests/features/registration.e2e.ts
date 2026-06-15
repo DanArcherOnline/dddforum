@@ -5,7 +5,7 @@ import { CreateUserInput } from "@dddforum/shared/src/api/users";
 import { Pages } from "../support/pages/pages";
 import * as path from "path";
 import { PuppeteerPageDriver } from "../support/driver";
-import { App, createApplicationPageObject } from "../support/pages";
+import { App, createAppObject } from "../support/pages";
 import { DatabaseFixture } from "@dddforum/shared/tests/support/fixtures/databaseFixture";
 
 const feature = loadFeature(
@@ -26,7 +26,7 @@ defineFeature(feature, (test) => {
       headless: false,
       slowMo: 50,
     });
-    app = createApplicationPageObject(puppeteerPageDriver);
+    app = createAppObject(puppeteerPageDriver);
     pages = app.pages;
   });
 
@@ -62,7 +62,7 @@ defineFeature(feature, (test) => {
     );
 
     then("I should be granted access to my account", async () => {
-      expect(await app.layout.header.getLoggedInUserName()).toContain(
+      expect(await app.layout.header.getUsernameFromHeader()).toContain(
         userInput.username,
       );
     });

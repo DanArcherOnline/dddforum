@@ -1,11 +1,11 @@
-import puppeteer, { Browser, Page, PuppeteerNodeLaunchOptions } from 'puppeteer';
+import puppeteer, { Browser, Page, PuppeteerLaunchOptions } from 'puppeteer';
 
 export class PuppeteerPageDriver {
   constructor(public browser: Browser, public page: Page) {}
 
-  static async create(options: PuppeteerNodeLaunchOptions): Promise<PuppeteerPageDriver> {
-    const browser = await puppeteer.launch(options);
-    const page = await browser.newPage();
-    return new PuppeteerPageDriver(browser, page);
+  public static async create(_options?: PuppeteerLaunchOptions) {
+    const browserInstance = await puppeteer.launch(_options);
+    const page = await browserInstance.newPage();
+    return new PuppeteerPageDriver(browserInstance, page);
   }
 }

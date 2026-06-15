@@ -1,10 +1,21 @@
 import { PuppeteerPageDriver } from '../driver';
+import { Component, PageElements } from './component';
 
-export class HeaderComponent {
-  constructor(private driver: PuppeteerPageDriver) {}
+export class HeaderComponent extends Component {
+  private elements: PageElements;
 
-  async getLoggedInUserName(): Promise<string> {
-    await this.driver.page.waitForSelector('#header-action-button div div');
-    return this.driver.page.$eval('#header-action-button div div', (el) => el.textContent ?? '');
+  constructor(driver: PuppeteerPageDriver) {
+    super(driver);
+    this.elements = new PageElements({
+      header: { selector: '.header.username', type: 'div' },
+    }, driver);
+  }
+
+  async getUsernameFromHeader() {
+    const usernameElement = await this.elements.get('header');
+    if (usernameElement instanceof Component) {
+      throw new Error('Expected an ElementHandle, got a Component');
+    }
+    return usernameElement?.evaluate((e: any) => e.textContent);
   }
 }

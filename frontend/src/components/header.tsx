@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import logo from "../assets/dddforumlogo.png";
+import { useUserSession } from "../context/UserSessionContext";
 
 function Logo() {
   return (
@@ -33,10 +34,8 @@ function HeaderActionButton({ user }: { user: HeaderUser }) {
     <div id="header-action-button">
       {user ? (
         <div>
-          <div>{user.username}</div>
-          <u>
-            <div>logout</div>
-          </u>
+          <div className="header username">Hello, {user.username}!</div>
+          <button type="button">Logout</button>
         </div>
       ) : (
         <Link to="/join">Join</Link>
@@ -51,6 +50,7 @@ function shouldShowActionButton(pathname: string) {
 
 export function Header() {
   const { pathname } = useLocation();
+  const { user } = useUserSession();
 
   return (
     <header id="header" className="flex align-center">
@@ -60,7 +60,7 @@ export function Header() {
         <Submission />
       </div>
       {shouldShowActionButton(pathname) ? (
-        <HeaderActionButton user={null} />
+        <HeaderActionButton user={user} />
       ) : null}
     </header>
   );

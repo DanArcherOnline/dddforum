@@ -2,23 +2,17 @@ import { PuppeteerPageDriver } from '../driver';
 import { PageObject } from './pageObject';
 import { PageElements, PageElementsConfig } from '../components/component';
 import { CreateUserParams } from '@dddforum/shared/src/api/users';
+import { appSelectors } from '@dddforum/frontend/src/shared/selectors';
 
 export class RegistrationPage extends PageObject {
   private elements: PageElements;
 
   constructor(driver: PuppeteerPageDriver) {
     super(driver, 'http://localhost:5173/join');
-    this.elements = new PageElements({
-      email: { selector: '.registration.email', type: 'input' },
-      username: { selector: '.registration.username', type: 'input' },
-      firstname: { selector: '.registration.first-name', type: 'input' },
-      lastname: { selector: '.registration.last-name', type: 'input' },
-      marketingCheckbox: {
-        selector: '.registration.marketing-emails',
-        type: 'checkbox',
-      },
-      submit: { selector: '.registration.submit-button', type: 'button' },
-    } as PageElementsConfig, driver);
+    this.elements = new PageElements(
+      appSelectors.registration.registrationForm as PageElementsConfig,
+      driver,
+    );
   }
 
   async enterAccountDetails(params: CreateUserParams) {

@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import logo from "../assets/dddforumlogo.png";
 import { useUserSession } from "../context/UserSessionContext";
+import { appSelectors, toClass } from "../shared/selectors";
 
 function Logo() {
   return (
@@ -34,7 +35,7 @@ function HeaderActionButton({ user }: { user: HeaderUser }) {
     <div id="header-action-button">
       {user ? (
         <div>
-          <div className="header username">Hello, {user.username}!</div>
+          <div className={toClass(appSelectors.header.selector)}>Hello, {user.username}!</div>
           <button type="button">Logout</button>
         </div>
       ) : (

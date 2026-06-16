@@ -1,185 +1,408 @@
-How to Connect a Protocol Driver Layer using Puppeteer #horizontalDecoupling #verticalSlicing Last updated: September 7th, 2024
+How to Stabilize the UI w/ Selectors #horizontalDecoupling
+Last updated: September 7th, 2024
 
-Topics: protocol driver, puppeteer, program by wishful thinking
+Topics: selectors (constant contracts), contracts, program by wishful thinking, the stable component principle
 
-Major Topics: Behaviour-Driven Design, Design Patterns
+Major Topics: Design Principles, Architectural Principles
 
-Now that we’ve got the page object layer created, let’s implement the subsequent layers to get our tests passing. It’s time for the protocol driver layer.
+Finally, by this point, you should have all of the tests working.
 
-Lesson Goals In this lesson, we’re going to cover:
+The last thing we’ll do here is refactor to increase test stability drastically. How? With selectors (or constant contracts).
 
-what is puppeteer & how do we set it up? how do you express clicks and keypresses effectively? how do you connect to react? What is puppeteer & the protocol driver layer? Underneath the domain specific language layer with the page objects sits the protocol driver layer.
+Lesson Goals
+In this lesson, you’ll learn:
 
-This is the final layer of code which translates the instructions we make from our page objects to the actual clicks and keypresses against the UI.
+why using hard-coded selectors is an issue
+about unstable and stable components
+how & why we can use selectors to stabilize your UI
+What’s the problem with hard-coded selectors?
+Previously, you saw the way we used the selectors both in the react component like so:
 
-To do so, we can use a web driving tool like _Puppeteer_ or Cypress.
 
-Similarly to how we use axios to handle the super low-level work of http requests and whatnot, as a frontend protocol driver, it interacts with the application on our behalf.
-
-Let’s get this installed
-
-In your backend project, install puppeteer with:
-
-npm install --save-dev puppeteer The way I like to set this up in my tests is as follows:
-
-beforeAll(async () => { databaseFixture = new DatabaseFixture(); puppeteerPageDriver = await PuppeteerPageDriver.create({ headless: false, slowMo: 50, }); app = createAppObject(puppeteerPageDriver); pages = app.pages; }); Every time I use some sort of infrastructural tool, I’ll always wrap it in my own abstraction so that I can specify the APIs I want.
-
-In this case, I want to just be able to say create and have one.
-
-Look at what we’re abstracting using a factory method.
-
-import puppeteer, { Browser, Page, PuppeteerLaunchOptions } from 'puppeteer';
-
-export class PuppeteerPageDriver { constructor(public browser: Browser, public page: Page) {}
-
-public static async create(\_options?: PuppeteerLaunchOptions) { const browserInstance = await puppeteer.launch(\_options); const page = await browserInstance.newPage(); return new PuppeteerPageDriver(browserInstance, page); } } And finally, we pass the instance into the page objects themselves.
-
-export function createAppObject(pageDriver: PuppeteerPageDriver): App {\
-return { pages: { registration: new RegistrationPage(pageDriver) }, layout: { header: new HeaderComponent(pageDriver), notifications: new AppNotifications(pageDriver) } } } Expressing the intent How to talk to the UI using Puppeteer Puppeteer has APIs that let you talk to the UI, but they typically end up looking a little messy (just like every other web driver tool).
-
-For example, if I wanted to click some element, the code would look something like this:
-
-try { let element = await driver.page.waitForSelector('.some-selector', { timeout: 3000 }); } catch (err) { console.log("Element not found"); } That’s the base API.
-
-But as I said before. Encapsulation. Let’s define the API we want.
-
-Expressing the intent of the registration page Taking a look at the registration page, it’s clear that there are a few methods that we need to implement.
-
-import { PuppeteerPageDriver } from "../driver"; import { PageObject } from "./pageObject"; import { CreateUserInput } from "@dddforum/shared/src/api/users";
-
-export class RegistrationPage extends PageObject { private elements: PageElements;
-
-constructor(driver: PuppeteerPageDriver) { super(driver, "http://localhost:5173/join");
-
-}
-
-async enterAccountDetails(input: CreateUserInput) { // to implement }
-
-async acceptMarketingEmails() { // to implement }
-
-async submitRegistrationForm() { // to implement } } Let’s do enter account details first.
-
-The first thing I’d do is just comment what I want.
-
-async enterAccountDetails(input: CreateUserInput) { // type the email // type the username // type the firstname // type the lastname } That’s what. Now how might we do this?
-
-Well, as I said, we could use puppeteer directly… but I find that API messy.
-
-Instead, I’m going to continue to program by wishful thinking.
-
-I’m going to imagine that I have a PageElements object, and this object knows about all of the elements I need on this page by KEY instead of the selector.
-
-async enterAccountDetails(input: CreateUserParams) { await this.elements.get("email").then((e: any) => e.type(input.email)); await this.elements.get("username").then((e: any) => e.type(input.username)); await this.elements.get("firstname").then((e: any) => e.type(input.firstName)); await this.elements.get("lastname").then((e: any) => e.type(input.lastName)); } And there we go.
-
-Now to invent this thing.
-
-In the constructor, I created a PageElements object and passed it the selectors using a reasonable pattern.
-
-export class RegistrationPage extends PageObject { private elements: PageElements;
-
-constructor(driver: PuppeteerPageDriver) { super(driver, "http://localhost:5173/join"); this.elements = new PageElements({ email: { selector: ".registration.email", type: "input" }, username: { selector: ".registration.username", type: "input" }, firstname: { selector: ".registration.first-name", type: "input" }, lastname: { selector: ".registration.last-name", type: "input" }, marketingCheckbox: { selector: ".registration.marketing-emails", type: "checkbox", }, submit: { selector: ".registration.submit-button", type: "button" }, }, driver); } And then it’s just implementing this object to make it work.
+...
+  return (
+    <div>
+      <input
+        className="registration email"
+        type="email"
+        placeholder="email"
+        onChange={(e) => setEmail(e.target.value)}
+      ></input>
+      <input
+        className="registration username"
+        type="text"
+        placeholder="username"
+        onChange={(e) => setUsername(e.target.value)}
+      ></input>
+      <input
+        className="registration first-name"
+        type="text"
+        placeholder="first name"
+        onChange={(e) => setFirstName(e.target.value)}
+      ></input>
+      <input
+        className="registration last-name"
+        type="text"
+        placeholder="last name"
+        onChange={(e) => setLastName(e.target.value)}
+      ></input>
+      <br/>
+      <br/>
+      <div>
+        <button
+          onClick={() => handleSubmit()}
+          className="registration submit-button"
+          type="submit"
+        >
+          Submit
+        </button>
+        <label>
+          <input
+            className="registration marketing-emails"
+            type="checkbox"
+            checked={allowMarketingEmails}
+            onChange={() => toggleAllowMarketingEmails()}
+          />
+          Want to be notified about events & discounts?
+        </label>
+      </div>
+      <br />
+      <div className="to-login">
+        <div>Already have an account?</div>
+        <Link to="/login">Login</Link>
+      </div>
+    </div>
+  );
+};
+And in our Page Objects as well
 
 import { PuppeteerPageDriver } from "../driver";
+import { PageObject } from "./pageObject";
+import { PageElements, PageElementsConfig } from "../components";
+import { CreateUserParams } from "@dddforum/shared/src/api/users";
+import { appSelectors } from "@dddforum/frontend/src/shared/selectors";
 
-type ElementType = "input" | "button" | "div" | "checkbox";
+export class RegistrationPage extends PageObject {
+  private elements: PageElements;
 
-export type PageElementsSelector = { selector: string; type: ElementType } | Component;
+  constructor(driver: PuppeteerPageDriver) {
+    super(driver, "<http://localhost:5173/join>");
+    this.elements = new PageElements({
+      email: { selector: ".registration.email", type: "input" },
+      username: { selector: ".registration.username", type: "input" },
+      firstname: { selector: ".registration.first-name", type: "input" },
+      lastname: { selector: ".registration.last-name", type: "input" },
+      marketingCheckbox: {
+        selector: ".registration.marketing-emails",
+        type: "checkbox",
+      },
+      submit: { selector: ".registration.submit-button", type: "button" },
+    }, driver);
+  }
 
-export interface PageElementsConfig { [key: string]: PageElementsSelector; }
+  async enterAccountDetails(params: CreateUserParams) {
+    await this.elements.get("email").then((e: any) => e.type(params.email));
+    await this.elements.get("username").then((e: any) => e.type(params.username));
+    await this.elements.get("firstname").then((e: any) => e.type(params.firstName));
+    await this.elements.get("lastname").then((e: any) => e.type(params.lastName));
+  }
 
-export abstract class Component { constructor (protected driver: PuppeteerPageDriver) {
+  async acceptMarketingEmails() {
+    await this.elements.get("marketingCheckbox").then((e: any) => e.click());
 
-} }
+  }
 
-export class PageElements { constructor( private config: PageElementsConfig, private driver: PuppeteerPageDriver ) {}
-
-async get(nameKey: string, timeout?: number) { const component = this.config[nameKey]; let element;
-
-```
-if (component instanceof Component) {
-  return component
+  async submitRegistrationForm() {
+    await this.elements.get("submit").then((e: any) => e.click());
+  }
 }
 
-try {
-  element = await this.driver.page.waitForSelector(component.selector, { timeout });
-} catch (err) {
-  console.log("Element not found");
-  throw new Error(`Element ${nameKey} not found!`);
-}
+What’s the problem with this?
 
-if (!element) {
-  throw new Error(
-    `Could not load component's element ${nameKey}: maybe it's not on the page yet.`
+Well, what happens if we were to change the name of a selector? What happens then?
+
+Or what if we change the structure of the UI? What then?
+
+You’ll break your tests, of course.
+
+The reason is because we haven’t stabilized the selector contract as a stable component. 
+
+The Stable Component Principle
+Robert Martin (Uncle Bob) writes about the idea of a Stable Component Principle. He says:
+
+A component should be either stable or unstable. But if it’s stable, it should be hard to change. Meaning — well protected, and rarely modified.
+
+That’s a great definition.
+
+In essence:
+
+Stable components should not change often, and they often have many incoming dependencies (other components relying on them). These components serve as the building blocks that other components depend on.
+Unstable components can change more easily and often have fewer dependencies or are the ones relying on stable components.
+Stable component examples
+Here are a few stable components for example.
+
+document.querySelector()
+When’s the last time you saw this change?
+
+Maybe never. That’s good, nearly every frontend library that operates against the DOM relies on this.
+
+Here’s another one.
+
+import { createUsersAPI } from "./users";
+import { createMarketingAPI } from "./marketing";
+import { createPostsAPI } from "./posts";
+
+export type Error<U> = {
+  message?: string;
+  code?: U;
+};
+
+export type APIResponse<T, U> = {
+  success: boolean;
+  data: T;
+  error: Error<U>;
+};
+
+export type ValidationError = "ValidationError";
+export type ServerError = "ServerError";
+export type GenericErrors = ValidationError | ServerError;
+
+export const createAPIClient = (apiURL: string) => {
+  return {
+    users: createUsersAPI(apiURL),
+    marketing: createMarketingAPI(apiURL),
+    posts: createPostsAPI(apiURL),
+  };
+};
+
+Remember this? It’s your API contract.
+
+It should be unlikely that this layer of the API changes a lot, because if it were to change, then the frontend, desktop, and the backend services that implement it would be in for a lot of ripple as well.
+
+Question: Is this a stable component?
+Is it?
+
+...
+  return (
+    <div>
+      <input
+        className="registration email"
+        type="email"
+        placeholder="email"
+        onChange={(e) => setEmail(e.target.value)}
+      ></input>
+      <input
+        className="registration username"
+        type="text"
+        placeholder="username"
+        onChange={(e) => setUsername(e.target.value)}
+      ></input>
+      <input
+        className="registration first-name"
+        type="text"
+        placeholder="first name"
+        onChange={(e) => setFirstName(e.target.value)}
+      ></input>
+      <input
+        className="registration last-name"
+        type="text"
+        placeholder="last name"
+        onChange={(e) => setLastName(e.target.value)}
+      ></input>
+      <br/>
+      <br/>
+      <div>
+        <button
+          onClick={() => handleSubmit()}
+          className="registration submit-button"
+          type="submit"
+        >
+          Submit
+        </button>
+        <label>
+          <input
+            className="registration marketing-emails"
+            type="checkbox"
+            checked={allowMarketingEmails}
+            onChange={() => toggleAllowMarketingEmails()}
+          />
+          Want to be notified about events & discounts?
+        </label>
+      </div>
+      <br />
+      <div className="to-login">
+        <div>Already have an account?</div>
+        <Link to="/login">Login</Link>
+      </div>
+    </div>
   );
+};
+If you answered no, you’re right, because it could change all the time.
+
+So to fix this, we have to give it a stable component through which to depend on.
+
+And that’s going to be selectors.
+
+How to use selectors (constant contracts) to stabilize your UI
+Selectors (or constant contracts) are basic JSON objects which stabilize the connection between your page object test code and your UI.
+
+They act as a form of dependency inversion.
+
+Here’s how it works.
+
+We strip out and encapsulate everything that varies within a constant.
+
+packages/frontend/shared/selectors/index.ts
+
+export const appSelectors = {
+  registration: {
+    registrationForm: {
+      email: { selector: ".registration.email", type: "input" },
+      username: { selector: ".registration.username", type: "input" },
+      firstname: { selector: ".registration.first-name", type: "input" },
+      lastname: { selector: ".registration.last-name", type: "input" },
+      marketingCheckbox: {
+        selector: ".registration.marketing-emails",
+        type: "checkbox",
+      },
+      submit: { selector: ".registration.submit-button", type: "button" },
+    },
+  },
+  header: { selector: ".header.username", type: "div" },
+  notifications: {
+    failure: "#failure-toast",
+    success: "#success-toast",
+  },
+};
+Note that the object key part of this is what is most stable and the value may change, but that’s okay, because these values change in one place, and we shield those changes from rippling on elsewhere.
+
+This means we adjust the way we hook up the Page Objects as well.
+
+import { PuppeteerPageDriver } from "../driver";
+import { PageObject } from "./pageObject";
+import { PageElements, PageElementsConfig } from "../components";
+import { CreateUserParams } from "@dddforum/shared/src/api/users";
+import { appSelectors } from "@dddforum/frontend/src/shared/selectors";
+
+export class RegistrationPage extends PageObject {
+  private elements: PageElements;
+
+  constructor(driver: PuppeteerPageDriver) {
+    super(driver, "<http://localhost:5173/join>");
+    this.elements = new PageElements(
+      appSelectors.registration.registrationForm as PageElementsConfig,
+      driver,
+    );
+  }
+
+  async enterAccountDetails(params: CreateUserParams) {
+    await this.elements.get("email").then((e: any) => e.type(params.email));
+    await this.elements.get("username").then((e: any) => e.type(params.username));
+    await this.elements.get("firstname").then((e: any) => e.type(params.firstName));
+    await this.elements.get("lastname").then((e: any) => e.type(params.lastName));
+  }
+
+  async acceptMarketingEmails() {
+    await this.elements.get("marketingCheckbox").then((e: any) => e.click());
+
+  }
+
+  async submitRegistrationForm() {
+    await this.elements.get("submit").then((e: any) => e.click());
+  }
 }
 
-return element;
-```
+Finally, in the React components, we rely directly on the selectors instead of the hard-coded values.
 
-} } That’s it. Working completely, totally, outside-in, guided by our tests.
+Boom. Values in one place. Selectors (constant contract) acting as the stable dependency. Grand.
 
-Completing the class, it’d look like the following
+return (
+    <div>
+      <input
+        className={toClass(selectors.email.selector)}
+        type="email"
+        placeholder="email"
+        onChange={(e) => setEmail(e.target.value)}
+      ></input>
+      <input
+        className={toClass(selectors.username.selector)}
+        type="text"
+        placeholder="username"
+        onChange={(e) => setUsername(e.target.value)}
+      ></input>
+      <input
+        className={toClass(selectors.firstname.selector)}
+        type="text"
+        placeholder="first name"
+        onChange={(e) => setFirstName(e.target.value)}
+      ></input>
+      <input
+        className={toClass(selectors.lastname.selector)}
+        type="text"
+        placeholder="last name"
+        onChange={(e) => setLastName(e.target.value)}
+      ></input>
+      <br/>
+      <br/>
+      <div>
+        <button
+          onClick={() => handleSubmit()}
+          className={toClass(selectors.submit.selector)}
+          type="submit"
+        >
+          Submit
+        </button>
+        <label>
+          <input
+            className={toClass(selectors.marketingCheckbox.selector)}
+            type="checkbox"
+            checked={allowMarketingEmails}
+            onChange={() => toggleAllowMarketingEmails()}
+          />
+          Want to be notified about events & discounts?
+        </label>
+      </div>
+      <br />
+      <div className="to-login">
+        <div>Already have an account?</div>
+        <Link to="/login">Login</Link>
+      </div>
+    </div>
+We also make use of some utility functions to strip and present the selector values.
 
-import { PuppeteerPageDriver } from "../driver"; import { PageObject } from "./pageObject"; import { PageElements, PageElementsConfig } from "../components"; import { CreateUserParams } from "@dddforum/shared/src/api/users"; import { appSelectors } from "@dddforum/frontend/src/shared/selectors";
-
-export class RegistrationPage extends PageObject { private elements: PageElements;
-
-constructor(driver: PuppeteerPageDriver) { super(driver, "http://localhost:5173/join"); this.elements = new PageElements({ email: { selector: ".registration.email", type: "input" }, username: { selector: ".registration.username", type: "input" }, firstname: { selector: ".registration.first-name", type: "input" }, lastname: { selector: ".registration.last-name", type: "input" }, marketingCheckbox: { selector: ".registration.marketing-emails", type: "checkbox", }, submit: { selector: ".registration.submit-button", type: "button" }, }, driver); }
-
-async enterAccountDetails(params: CreateUserParams) { await this.elements.get("email").then((e: any) => e.type(params.email)); await this.elements.get("username").then((e: any) => e.type(params.username)); await this.elements.get("firstname").then((e: any) => e.type(params.firstName)); await this.elements.get("lastname").then((e: any) => e.type(params.lastName)); }
-
-async acceptMarketingEmails() { await this.elements.get("marketingCheckbox").then((e: any) => e.click());
-
+export function toClass(input: string): string {
+  // Remove the leading dot and replace all remaining dots with spaces
+  return input.slice(1).replace(/\\./g, " ");
 }
 
-async submitRegistrationForm() { await this.elements.get("submit").then((e: any) => e.click()); } }
+export function toId(input: string): string {
+  if (!input.startsWith("#")) {
+    throw new Error("Input string must start with a hash symbol (#).");
+  }
 
-Connecting to the frontend Ideally, if we were starting from scratch, your React code should have emerged as a result of the test we’d just written.
+  // Remove the leading hash symbol
+  return input.slice(1);
+}
+Congratulations, you’ve massively stabilized your E2E code.
 
-But since we’re retro-fitting our code to work with the tests, let’s adjust the selectors now.
+As long as you keep these selectors unique (which should be much easier to do from a single location), you’re going to have much less trouble writing stable E2E tests.
 
-You’ll have to adjust the:
+Of course, we’ve still got loading issues and timeouts to deal with, but this is much, much better from a design perspective.
 
-header mainPage registrationForm Here’s the form with the main selectors and the new email marketing code.
+Nice work!
 
-import { useState } from "react"; import { Link } from "react-router-dom"; import { CreateUserCommand } from '@dddforum/shared/src/api/users'
-
-interface RegistrationFormProps { onSubmit: (formDetails: CreateUserCommand, allowMarketingEmails: boolean) => void; }
-
-export const RegistrationForm = (props: RegistrationFormProps) => { const [email, setEmail] = useState("email"); const [username, setUsername] = useState("username"); const [firstName, setFirstName] = useState("firstName"); const [lastName, setLastName] = useState("lastName"); const [allowMarketingEmails, setAllowMarketingEmails] = useState(false);
-
-const toggleAllowMarketingEmails = () => { setAllowMarketingEmails(!allowMarketingEmails); };
-
-const handleSubmit = () => { props.onSubmit({ email, username, firstName, lastName, }, allowMarketingEmails); };
-
-return ( \<input className="registration email" type="email" placeholder="email" onChange={(e) => setEmail(e.target.value)} > \<input className="registration username" type="text" placeholder="username" onChange={(e) => setUsername(e.target.value)} > \<input className="registration first-name" type="text" placeholder="first name" onChange={(e) => setFirstName(e.target.value)} > \<input className="registration last-name" type="text" placeholder="last name" onChange={(e) => setLastName(e.target.value)} > \<button onClick={() => handleSubmit()} className="registration submit-button" type="submit" > Submit \<input className="registration marketing-emails" type="checkbox" checked={allowMarketingEmails} onChange={() => toggleAllowMarketingEmails()} /> Want to be notified about events & discounts? Already have an account? Login ); }; Notice the class names!
-
-And then, if we run our test, we should see that it passes.
-
-That’s all you should need to complete your test!
-
-FAQ “What if the selectors don’t exist?” You gotta make ‘em exist. Analyze the structure of your React components and aim to keep it in alignment with the page object model. This is why working top-down/outside-in is key.
-
-“What about the notifications?” When you use the toast notifications, you can pass an id to it like so:
-
-toast('Success! Redirecting home.', { toastId: `success-toast` }) Make sure you do this, because it becomes the selector we use to grab the notifications.
-
-“What about the header?” You’ll want to also set up the other page objects masquerading as components, like the Header.
-
-import { PuppeteerPageDriver } from "../driver/puppeteerPageDriver"; import { Component, PageElements } from "./component";
-
-export class HeaderComponent extends Component { private elements: PageElements;
-
-constructor(driver: PuppeteerPageDriver) { super(driver); this.elements = new PageElements({ header: { selector: '.header.username', type: 'div' }, }, driver) }
-
-async getUsernameFromHeader () { let usernameElement = await this.elements.get('header'); return usernameElement?.evaluate((e) => e.textContent); } } Your Turn! Now get to it, my friend.
+Your Turn!
+That’s going to do it for this submodule. Wrapping up…
 
 Specifically, make sure you’ve set up the following.
 
-✅ I have implemented the successful registration with marketing emails accepted scenario
+✅ I have created a simple contract layer using a constant (selectors) contract
 
-✅ I have implemented the invalid or missing registration details scenario
+✅ I have ensured that the frontend implements the constants contract to implement components
 
-✅ I have implemented the account already created with email scenario
+✅ I have a test rig uses the constants contract to denote selectors
 
-Summary Puppeteer is a web driver — the protocol driver in the 4-tier acceptance testing stack for the UI; it handles the actual clicks and presses. Continue to program by wishful thinking as much as you can, focusing on a good developer experience before passing off control to the web driver. As you work outside-in, you may realize the need to adjust selectors so that they can be reached by Puppeteer.
+Summary
+The stable component principle states that a component should either be stable or non-stable. Stable components act as building blocks through which non-stable components ground off of.
+Selectors are stable components which enable our page objects (unstable) and our React components (stable) to ground off of.
+ 

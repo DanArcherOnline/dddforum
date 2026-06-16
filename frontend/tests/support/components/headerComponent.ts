@@ -1,5 +1,6 @@
 import { PuppeteerPageDriver } from '../driver';
 import { Component, PageElements } from './component';
+import { appSelectors } from '@dddforum/frontend/src/shared/selectors';
 
 export class HeaderComponent extends Component {
   private elements: PageElements;
@@ -7,7 +8,7 @@ export class HeaderComponent extends Component {
   constructor(driver: PuppeteerPageDriver) {
     super(driver);
     this.elements = new PageElements({
-      header: { selector: '.header.username', type: 'div' },
+      header: appSelectors.header,
     }, driver);
   }
 

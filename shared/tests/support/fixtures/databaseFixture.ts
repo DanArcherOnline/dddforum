@@ -1,6 +1,16 @@
 import { Client } from 'pg';
+import { createAPIClient } from '@dddforum/shared/src/api';
+import { CreateUserInput } from '@dddforum/shared/src/api/users';
 
 export class DatabaseFixture {
+  private apiClient = createAPIClient(
+    process.env.API_BASE_URL ?? 'http://localhost:3000',
+  );
+
+  async setupExistingUsers(users: CreateUserInput[]) {
+    await Promise.all(users.map((user) => this.apiClient.users.register(user)));
+  }
+
   async resetDatabase() {
     const client = new Client({ connectionString: process.env.DATABASE_URL });
     await client.connect();

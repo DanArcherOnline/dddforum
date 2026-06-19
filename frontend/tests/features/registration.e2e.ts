@@ -1,12 +1,13 @@
 import { defineFeature, loadFeature } from "jest-cucumber";
 import { sharedTestRoot } from "@dddforum/shared/src/paths";
-import { CreateUserInputBuilder } from "@dddforum/shared/tests/support/builders/createUserBuilder";
+import { CreateUserBuilder } from "@dddforum/shared/tests/support/builders/createUserBuilder";
 import { CreateUserInput } from "@dddforum/shared/src/api/users";
 import { Pages } from "../support/pages/pages";
 import * as path from "path";
 import { PuppeteerPageDriver } from "../support/driver";
 import { App, createAppObject } from "../support/pages";
 import { DatabaseFixture } from "@dddforum/shared/tests/support/fixtures/databaseFixture";
+import { TextUtil } from "@dddforum/shared/src/utils/textUtils";
 
 const feature = loadFeature(
   path.join(sharedTestRoot, "features/registration.feature"),
@@ -47,7 +48,7 @@ defineFeature(feature, (test) => {
     and,
   }) => {
     given("I am a new user", async () => {
-      userInput = new CreateUserInputBuilder().withAllRandomDetails().build();
+      userInput = new CreateUserBuilder().withAllRandomDetails().build();
 
       await pages.registration.open();
     });
@@ -79,7 +80,7 @@ defineFeature(feature, (test) => {
     and,
   }) => {
     given("I am a new user", async () => {
-      userInput = new CreateUserInputBuilder().withAllRandomDetails().build();
+      userInput = new CreateUserBuilder().withAllRandomDetails().build();
 
       await pages.registration.open();
     });
@@ -104,12 +105,59 @@ defineFeature(feature, (test) => {
   });
 
   test("Account already created with email", ({ given, when, then, and }) => {
-    given("a set of users already created accounts", () => {});
-    when("new users attempt to register with those emails", () => {});
+    let existingUserInputs: CreateUserInput[];
+    let notificationResults: (string | null)[];
+    let accessResults: boolean[];
+
+    given("a set of users already created accounts", async (table) => {
+      type Row = { firstName: string; lastName: string; email: string };
+      existingUserInputs = table.map((row: Row) =>
+        new CreateUserBuilder()
+          .withFirstName(row.firstName)
+          .withLastName(row.lastName)
+          .withUsername(TextUtil.createRandomText(10))
+          .withEmail(row.email)
+          .build(),
+      );
+      await databaseFixture.setupExistingUsers(existingUserInputs);
+    });
+
+    when("new users attempt to register with those emails", async () => {
+      notificationResults = [];
+      accessResults = [];
+
+      for (const existing of existingUserInputs) {
+        await pages.registration.open();
+        const newUser = new CreateUserBuilder()
+          .withAllRandomDetails()
+          .withEmail(existing.email)
+          .build();
+        await pages.registration.enterAccountDetails(newUser);
+        await pages.registration.submitRegistrationForm();
+
+        notificationResults.push(
+          await app.notifications.getTextFromFailureNotification(),
+        );
+        accessResults.push(await app.layout.header.isUsernamePresent());
+      }
+    });
+
     then(
       "they should see an error notifying them that the account already exists",
-      () => {},
+      async () => {
+        for (const notification of notificationResults) {
+          expect(notification).toContain("email is already in use");
+        }
+      },
     );
-    and("they should not have been sent access to account details", () => {});
+
+    and(
+      "they should not have been sent access to account details",
+      async () => {
+        for (const isUsernamePresent of accessResults) {
+          expect(isUsernamePresent).toBe(false);
+        }
+      },
+    );
   });
 });

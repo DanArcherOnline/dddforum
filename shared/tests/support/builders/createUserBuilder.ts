@@ -1,7 +1,7 @@
 import { CreateUserInput } from '@dddforum/shared/src/api/users';
 import { TextUtil } from '@dddforum/shared/src/utils/textUtils';
 
-export class CreateUserInputBuilder {
+export class CreateUserBuilder {
   private props: Partial<CreateUserInput>;
 
   constructor() {

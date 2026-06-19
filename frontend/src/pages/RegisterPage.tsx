@@ -1,13 +1,13 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { RegistrationForm } from "./components/RegistrationForm";
-import { Layout } from "./components/layout";
-import { useUserSession } from "./context/UserSessionContext";
-import { api } from "./api/index";
-import type { CreateUserParams } from "./registration/types";
-import { validateRegistrationInput } from "./registration/validateRegistrationInput";
-import { appSelectors, toClass } from "./shared/selectors";
+import { RegistrationForm } from "../components/RegistrationForm";
+import { Layout } from "../components/layout";
+import { useUserSession } from "../context/UserSessionContext";
+import { api } from "../api/index";
+import type { CreateUserParams } from "../registration/types";
+import { validateRegistrationInput } from "../registration/validateRegistrationInput";
+import { appSelectors, toClass } from "../shared/selectors";
 
 const failureToastClass = toClass(appSelectors.notifications.failure);
 const successToastClass = toClass(appSelectors.notifications.success);
@@ -52,7 +52,9 @@ export const RegisterPage = () => {
             return showError(response.error.message ?? "Invalid input.");
           case "ServerError":
           default:
-            return showError("Oops... Something went wrong. Please try again later.");
+            return showError(
+              "Oops... Something went wrong. Please try again later.",
+            );
         }
       }
 
@@ -61,7 +63,9 @@ export const RegisterPage = () => {
       }
 
       setUser(response.data);
-      toast("Success! Redirecting home.", { classNames: { toast: successToastClass } });
+      toast("Success! Redirecting home.", {
+        classNames: { toast: successToastClass },
+      });
       redirectTimerRef.current = setTimeout(() => {
         navigate("/");
       }, 3000);

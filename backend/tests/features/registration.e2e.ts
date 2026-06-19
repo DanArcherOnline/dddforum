@@ -6,7 +6,7 @@ import { CompositionRoot } from "../../src/shared/compositionRoot";
 import { CreateUserParams, CreateUserResponse } from "@dddforum/shared/src/api/users";
 import { AddEmailToListResponse } from "@dddforum/shared/src/api/marketing";
 import { APIFixture } from "../support/fixtures/APIFixture";
-import { CreateUserBuilder } from "../support/builders/CreateUserBuilder";
+import { CreateUserBuilder } from "@dddforum/shared/tests/support/builders/createUserBuilder";
 import { TextUtil } from "@dddforum/shared/src/utils/textUtils";
 import { DatabaseFixture } from "../support/fixtures/DatabaseFixture";
 

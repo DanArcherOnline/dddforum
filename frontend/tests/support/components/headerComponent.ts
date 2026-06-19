@@ -19,4 +19,9 @@ export class HeaderComponent extends Component {
     }
     return usernameElement?.evaluate((e: any) => e.textContent);
   }
+
+  async isUsernamePresent() {
+    const el = await this.driver.page.$(appSelectors.header.selector);
+    return el !== null;
+  }
 }

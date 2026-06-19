@@ -7,6 +7,10 @@ import { useUserSession } from "./context/UserSessionContext";
 import { api } from "./api/index";
 import type { CreateUserParams } from "./registration/types";
 import { validateRegistrationInput } from "./registration/validateRegistrationInput";
+import { appSelectors, toClass } from "./shared/selectors";
+
+const failureToastClass = toClass(appSelectors.notifications.failure);
+const successToastClass = toClass(appSelectors.notifications.success);
 
 export const RegisterPage = () => {
   const navigate = useNavigate();
@@ -22,11 +26,18 @@ export const RegisterPage = () => {
     [],
   );
 
-  const handleSubmitRegistrationForm = async (input: CreateUserParams, allowMarketingEmails: boolean) => {
+  const handleSubmitRegistrationForm = async (
+    input: CreateUserParams,
+    allowMarketingEmails: boolean,
+  ) => {
+    const showError = (message: string) => {
+      toast.error(message, { classNames: { toast: failureToastClass } });
+    };
+
     const validationResult = validateRegistrationInput(input);
 
     if (!validationResult.success) {
-      return toast.error(validationResult.errorMessage);
+      return showError(validationResult.errorMessage);
     }
 
     try {
@@ -34,22 +45,28 @@ export const RegisterPage = () => {
       if (!response.success) {
         switch (response.error.code) {
           case "EmailAlreadyInUse":
-            return toast.error("This email is already in use. Perhaps you want to log in?");
+            return showError("This email is already in use.");
           case "UsernameAlreadyTaken":
-            return toast.error("Please try a different username, this one is already taken.");
+            return showError("This username is already taken.");
           case "ValidationError":
-            return toast.error(response.error.message);
+            return showError(response.error.message ?? "Invalid input.");
           case "ServerError":
           default:
-            return toast.error("Some backend error occurred");
+            return showError("Oops... Something went wrong. Please try again later.");
         }
       }
 
+      if (allowMarketingEmails) {
+        await api.marketing.addEmailToList(input.email);
+      }
+
       setUser(response.data);
-      toast("Success! Redirecting home.", { id: "success-toast" });
-      redirectTimerRef.current = setTimeout(() => { navigate("/"); }, 3000);
+      toast("Success! Redirecting home.", { classNames: { toast: successToastClass } });
+      redirectTimerRef.current = setTimeout(() => {
+        navigate("/");
+      }, 3000);
     } catch (err) {
-      return toast.error("Some backend error occurred");
+      return showError("Oops... Something went wrong. Please try again later.");
     }
   };
 

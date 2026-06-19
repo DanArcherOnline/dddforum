@@ -78,13 +78,29 @@ defineFeature(feature, (test) => {
     then,
     and,
   }) => {
-    given("I am a new user", () => {});
-    when("I register with invalid account details", () => {});
+    given("I am a new user", async () => {
+      userInput = new CreateUserInputBuilder().withAllRandomDetails().build();
+
+      await pages.registration.open();
+    });
+    when("I register with invalid account details", async () => {
+      await pages.registration.enterAccountDetails({
+        ...userInput,
+        email: "invalid-email-format",
+      });
+      await pages.registration.submitRegistrationForm();
+    });
     then(
       "I should see an error notifying me that my input is invalid",
-      () => {},
+      async () => {
+        const notification =
+          await app.notifications.getTextFromFailureNotification();
+        expect(notification).toBeTruthy();
+      },
     );
-    and("I should not have been sent access to account details", () => {});
+    and("I should not have been sent access to account details", async () => {
+      expect(await app.layout.header.isUsernamePresent()).toBe(false);
+    });
   });
 
   test("Account already created with email", ({ given, when, then, and }) => {

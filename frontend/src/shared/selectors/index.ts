@@ -14,8 +14,8 @@ export const appSelectors = {
   },
   header: { selector: ".header.username", type: "div" as const },
   notifications: {
-    failure: "#failure-toast",
-    success: "#success-toast",
+    failure: ".failure-toast",
+    success: ".success-toast",
   },
 };
 

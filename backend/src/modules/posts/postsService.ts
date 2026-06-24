@@ -1,4 +1,4 @@
-import type { PostsModel } from "./postsModel";
+import type { PostsRepository } from "./ports/postsRepository";
 
 function netVoteScore(votes: { voteType: string }[]): number {
   let score = 0;
@@ -10,10 +10,10 @@ function netVoteScore(votes: { voteType: string }[]): number {
 }
 
 export class PostsService {
-  constructor(private postsModel: PostsModel) {}
+  constructor(private postsRepo: PostsRepository) {}
 
   async getPopularPosts() {
-    const posts = await this.postsModel.getAllPosts();
+    const posts = await this.postsRepo.getAllPosts();
     posts.sort((a, b) => {
       const byScore = netVoteScore(b.votes) - netVoteScore(a.votes);
       if (byScore !== 0) return byScore;

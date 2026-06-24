@@ -1,6 +1,6 @@
 import { Database } from "../../shared/database/database";
 import { WebServer } from "../../shared/http/webServer";
-import { PostsModel } from "./postsModel";
+import { ProductionPostsRepository } from "./adapters/productionPostsRepository";
 import { PostsService } from "./postsService";
 import { PostsController } from "./postsController";
 import { errorHandler } from "../../shared/errors";
@@ -19,7 +19,7 @@ export class PostsModule {
   }
 
   private createPostsService() {
-    return new PostsService(new PostsModel(this.dbConnection));
+    return new PostsService(new ProductionPostsRepository(this.dbConnection.getClient()));
   }
 
   private createPostsController() {

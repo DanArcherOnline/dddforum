@@ -2,8 +2,9 @@ import path from "path";
 import { loadFeature, defineFeature } from "jest-cucumber";
 import { Config } from "../../src/shared/config";
 import { CompositionRoot } from "../../src/shared/compositionRoot";
-import { InMemoryUserRepository } from "../../src/modules/users/adapters/inMemoryUserRepository";
-import type { InMemoryContactListAPI } from "../../src/modules/marketing/adapters/inMemoryContactListAPI";
+import { InMemoryUserRepositorySpy } from "../../src/modules/users/adapters/inMemoryUserRepositorySpy";
+import { TransactionalEmailAPISpy } from "../../src/modules/notifications/adapters/transactionalEmailAPISpy";
+import { ContactListAPISpy } from "../../src/modules/marketing/adapters/contactListAPISpy";
 import { CreateUserBuilder } from "@dddforum/shared/tests/support/builders/createUserBuilder";
 import { TextUtil } from "@dddforum/shared/src/utils/textUtils";
 import type { CreateUserParams } from "@dddforum/shared/src/api/users";
@@ -24,19 +25,27 @@ const feature = loadFeature(
 defineFeature(feature, (test) => {
   let composition: CompositionRoot;
   let application: ReturnType<CompositionRoot["getApplication"]>;
-  let fakeUserRepo: InMemoryUserRepository;
-  let fakeContactListAPI: InMemoryContactListAPI;
+  let userRepoSpy: InMemoryUserRepositorySpy;
+  let transactionalEmailAPISpy: TransactionalEmailAPISpy;
+  let contactListAPISpy: ContactListAPISpy;
 
   beforeAll(async () => {
-    composition = CompositionRoot.createCompositionRoot(new Config("test:unit"));
+    composition = CompositionRoot.createCompositionRoot(
+      new Config("test:unit"),
+    );
     application = composition.getApplication();
-    fakeUserRepo = composition.getRepositories().users as InMemoryUserRepository;
-    fakeContactListAPI = composition.getRepositories().contactList as InMemoryContactListAPI;
+    userRepoSpy = composition.getRepositories()
+      .users as InMemoryUserRepositorySpy;
+    transactionalEmailAPISpy = composition.getRepositories()
+      .transactionalEmail as TransactionalEmailAPISpy;
+    contactListAPISpy = composition.getRepositories()
+      .contactList as ContactListAPISpy;
   });
 
   afterEach(async () => {
-    await fakeUserRepo.reset();
-    fakeContactListAPI.reset();
+    await userRepoSpy.reset();
+    contactListAPISpy.reset();
+    transactionalEmailAPISpy.reset();
   });
 
   test("Successful registration with marketing emails accepted", ({
@@ -56,8 +65,11 @@ defineFeature(feature, (test) => {
     when(
       "I register with valid account details accepting marketing emails",
       async () => {
-        createUserResponse = await application.users.createUser(createUserInput);
-        addEmailToListResponse = await application.marketing.addEmailToList(createUserInput.email);
+        createUserResponse =
+          await application.users.createUser(createUserInput);
+        addEmailToListResponse = await application.marketing.addEmailToList(
+          createUserInput.email,
+        );
       },
     );
 
@@ -70,15 +82,25 @@ defineFeature(feature, (test) => {
       expect(createUserResponse.username).toEqual(createUserInput.username);
 
       // State verification
-      const getUserResponse = await application.users.getUserByEmail(createUserInput.email);
+      const getUserResponse = await application.users.getUserByEmail(
+        createUserInput.email,
+      );
       expect(createUserInput.email).toEqual(getUserResponse.email);
+
+      // Communication verification
+      expect(userRepoSpy.getTimesMethodCalled("save")).toEqual(1);
+      expect(transactionalEmailAPISpy.getTimesMethodCalled("sendMail")).toEqual(
+        1,
+      );
     });
 
     and("I should expect to receive marketing emails", () => {
       // Result verification
       expect(addEmailToListResponse).toBe(true);
-      // State verification
-      expect(fakeContactListAPI.getEmails().has(createUserInput.email)).toBe(true);
+      // Communication verification
+      expect(contactListAPISpy.getTimesMethodCalled("addEmailToList")).toEqual(
+        1,
+      );
     });
   });
 
@@ -98,7 +120,8 @@ defineFeature(feature, (test) => {
     when(
       "I register with valid account details declining marketing emails",
       async () => {
-        createUserResponse = await application.users.createUser(createUserInput);
+        createUserResponse =
+          await application.users.createUser(createUserInput);
       },
     );
 
@@ -111,13 +134,23 @@ defineFeature(feature, (test) => {
       expect(createUserResponse.username).toEqual(createUserInput.username);
 
       // State verification
-      const getUserResponse = await application.users.getUserByEmail(createUserInput.email);
+      const getUserResponse = await application.users.getUserByEmail(
+        createUserInput.email,
+      );
       expect(createUserInput.email).toEqual(getUserResponse.email);
+
+      // Communication verification
+      expect(userRepoSpy.getTimesMethodCalled("save")).toEqual(1);
+      expect(transactionalEmailAPISpy.getTimesMethodCalled("sendMail")).toEqual(
+        1,
+      );
     });
 
     and("I should not expect to receive marketing emails", () => {
-      // State verification: email was NOT added to the contact list
-      expect(fakeContactListAPI.getEmails().has(createUserInput.email)).toBe(false);
+      // Communication verification: addEmailToList was NOT called
+      expect(contactListAPISpy.getTimesMethodCalled("addEmailToList")).toEqual(
+        0,
+      );
     });
   });
 
@@ -135,7 +168,6 @@ defineFeature(feature, (test) => {
     });
 
     when("I register with invalid account details", () => {
-      // Validation happens at the DTO/application boundary
       try {
         CreateUserDTO.fromRequest(invalidInput);
       } catch (err) {
@@ -149,9 +181,8 @@ defineFeature(feature, (test) => {
     });
 
     and("I should not have been sent access to account details", async () => {
-      // State verification: no user was saved
-      const savedUser = await fakeUserRepo.findUserByEmail("john@example.com");
-      expect(savedUser).toBeNull();
+      // Communication verification: save was NOT called
+      expect(userRepoSpy.getTimesMethodCalled("save")).toEqual(0);
     });
   });
 
@@ -201,13 +232,16 @@ defineFeature(feature, (test) => {
       },
     );
 
-    and("they should not have been sent access to account details", async () => {
-      // State verification: each original email exists exactly once (no duplicates saved)
-      for (const input of existingUserInputs) {
-        const user = await application.users.getUserByEmail(input.email);
-        expect(user).not.toBeNull();
-      }
-    });
+    and(
+      "they should not have been sent access to account details",
+      async () => {
+        // State verification: each original email exists exactly once (no duplicates saved)
+        for (const input of existingUserInputs) {
+          const user = await application.users.getUserByEmail(input.email);
+          expect(user).not.toBeNull();
+        }
+      },
+    );
   });
 
   test("Username already taken", ({ given, when, then, and }) => {
@@ -232,7 +266,9 @@ defineFeature(feature, (test) => {
             .build(),
         );
         await Promise.all(
-          existingUserInputs.map((input) => application.users.createUser(input)),
+          existingUserInputs.map((input) =>
+            application.users.createUser(input),
+          ),
         );
       },
     );
@@ -272,13 +308,14 @@ defineFeature(feature, (test) => {
       },
     );
 
-    and("they should not have been sent access to account details", async () => {
-      // State verification: new users with taken usernames were not saved
-      const newEmails = ["billy@billbob.com", "maxsamson@example.com", "willsteff@example.com"];
-      for (const email of newEmails) {
-        const user = await fakeUserRepo.findUserByEmail(email);
-        expect(user).toBeNull();
-      }
-    });
+    and(
+      "they should not have been sent access to account details",
+      async () => {
+        // Communication verification: save was NOT called for the new users with taken usernames
+        expect(userRepoSpy.getTimesMethodCalled("save")).toEqual(
+          existingUserInputs.length,
+        );
+      },
+    );
   });
 });

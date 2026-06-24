@@ -1,13 +1,13 @@
 import { Database } from "../../shared/database/database";
 import { WebServer } from "../../shared/http/webServer";
 import { ProductionUserRepository } from "./adapters/productionUserRepository";
-import { InMemoryUserRepository } from "./adapters/inMemoryUserRepository";
+import { InMemoryUserRepositorySpy } from "./adapters/inMemoryUserRepositorySpy";
 import { UserService } from "./userService";
 import { UserController } from "./userController";
-import type { TransactionalEmailAPI } from "../notifications/transactionalEmailAPI";
 import type { UsersRepository } from "./ports/usersRepository";
 import { errorHandler } from "../../shared/errors";
 import { Config } from "../../shared/config";
+import { TransactionalEmailAPI } from "../notifications/ports/transactionalEmailAPI";
 
 export class UsersModule extends Config {
   private usersRepository: UsersRepository;
@@ -25,7 +25,11 @@ export class UsersModule extends Config {
     this.userController = this.createUserController();
   }
 
-  static build(dbConnection: Database, transactionalEmailAPI: TransactionalEmailAPI, config: Config) {
+  static build(
+    dbConnection: Database,
+    transactionalEmailAPI: TransactionalEmailAPI,
+    config: Config,
+  ) {
     return new UsersModule(dbConnection, transactionalEmailAPI, config);
   }
 
@@ -38,7 +42,7 @@ export class UsersModule extends Config {
 
   private createUsersRepository(): UsersRepository {
     if (this.shouldBuildFakeRepository()) {
-      return new InMemoryUserRepository();
+      return new InMemoryUserRepositorySpy();
     }
     return new ProductionUserRepository(this.dbConnection.getClient());
   }

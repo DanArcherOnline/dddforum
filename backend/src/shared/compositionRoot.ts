@@ -12,6 +12,7 @@ import type { ContactListAPI } from "../modules/marketing/ports/contactListAPI";
 import type { UserService } from "../modules/users/userService";
 import type { MarketingService } from "../modules/marketing/marketingService";
 import { errorHandler } from "./errors";
+import { TransactionalEmailAPI } from "../modules/notifications/ports/transactionalEmailAPI";
 
 export class CompositionRoot {
   private static instance: CompositionRoot | null = null;
@@ -47,7 +48,7 @@ export class CompositionRoot {
   }
 
   public createNotificationsModule() {
-    return NotificationsModule.build();
+    return NotificationsModule.build(this.config);
   }
 
   public createMarketingModule() {
@@ -103,10 +104,16 @@ export class CompositionRoot {
     return this.dbConnection;
   }
 
-  getRepositories(): { users: UsersRepository; contactList: ContactListAPI } {
+  getRepositories(): {
+    users: UsersRepository;
+    contactList: ContactListAPI;
+    transactionalEmail: TransactionalEmailAPI;
+  } {
     return {
       users: this.usersModule.getUserRepository(),
       contactList: this.marketingModule.getContactListAPI(),
+      transactionalEmail:
+        this.notificationsModule.getTransactionalEmailAPI(),
     };
   }
 

@@ -1,6 +1,6 @@
 import { WebServer } from "../../shared/http/webServer";
 import { MailchimpContactList } from "./adapters/mailchimpContactList";
-import { InMemoryContactListAPI } from "./adapters/inMemoryContactListAPI";
+import { ContactListAPISpy } from "./adapters/contactListAPISpy";
 import { MarketingService } from "./marketingService";
 import { MarketingController } from "./marketingController";
 import type { ContactListAPI } from "./ports/contactListAPI";
@@ -32,7 +32,7 @@ export class MarketingModule extends Config {
 
   private createContactListAPI(): ContactListAPI {
     if (this.shouldBuildFakeRepository()) {
-      return new InMemoryContactListAPI();
+      return new ContactListAPISpy();
     }
     return new MailchimpContactList();
   }

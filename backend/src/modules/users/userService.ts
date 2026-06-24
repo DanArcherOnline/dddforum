@@ -1,13 +1,16 @@
 import { toPublicUser } from "./userView";
 import type { PublicUser } from "./userView";
 import type { UsersRepository } from "./ports/usersRepository";
-import type { CreateUserParams, UpdateUserInput } from "@dddforum/shared/src/api/users";
-import type { TransactionalEmailAPI } from "../notifications/transactionalEmailAPI";
+import type {
+  CreateUserParams,
+  UpdateUserInput,
+} from "@dddforum/shared/src/api/users";
 import {
   EmailAlreadyInUseException,
   UsernameAlreadyTakenException,
   UserNotFoundException,
 } from "../../shared/exceptions";
+import { TransactionalEmailAPI } from "../notifications/ports/transactionalEmailAPI";
 
 export class UserService {
   constructor(
@@ -16,14 +19,16 @@ export class UserService {
   ) {}
 
   async createUser(input: CreateUserParams): Promise<PublicUser> {
-    const existingByUsername = await this.userRepo.findUserByUsername(input.username);
+    const existingByUsername = await this.userRepo.findUserByUsername(
+      input.username,
+    );
     if (existingByUsername) throw new UsernameAlreadyTakenException();
 
     const existingByEmail = await this.userRepo.findUserByEmail(input.email);
     if (existingByEmail) throw new EmailAlreadyInUseException();
 
     const user = await this.userRepo.save(input);
-    await this.transactionalEmailAPI.sendWelcomeEmail(input.email);
+    await this.transactionalEmailAPI.sendMail(input.email);
     return toPublicUser(user);
   }
 

@@ -1,222 +1,189 @@
-# How to Write High Value Unit Tests
-
-\#subjectVerification #verticalSlicing
+# Communication Verification: How to Spy & Mock w/ Hand-Written Test Doubles 
+#subjectVerification
 
 _Last updated: Sept 20th, 2024_
 
-_Topics: composition, test doubles (fakes, mocks, stubs), core code vs. infra code, 4 tiers architecture, hexagonal architecture_
+_Topics: test doubles, spies, indirect inputs & outputs, hand-written vs. framework/library test doubles, commands and queries_
 
-_Major Topics: Test-Driven Development, Behaviour-Driven Design, Architectural Patterns, Design Patterns_
+_Major Topics: Test Driven-Development, Behaviour-Driven Design, Design Patterns_
 
-Now that we’ve decoupled the outgoing adapters from our core code, we’re finally ready to learn how to write high value unit tests.
+Now that we’ve learned how to _High Value Unit Test_, I’ll show you how to enhance your tests with the final form of _Subject Verification_ — **communication verification**.
 
-Let’s go deeper on these, learn why we write them, and how to write them.
+In this lesson, we’re going to learn about test doubles, how to use hand-written test doubles (_spies_) to perform communication verification.
 
 ## Lesson Goals
 
-Specifically, we will over:
+- _What is communication verification and how does it help us?_
+- _Understanding spies & the philosophy of test doubles_
+- _How to implement hand-written test doubles (spies) to perform communication verification_
 
-- _what is a high value unit test & why does it matter?_
-- _what is the architecture of a high value unit test?_
-- _how to write high value unit tests_
+## Recap: What is Communication Verification?
 
-## What is a high value unit test & why does it matter?
+Throughout _Best Practice-First_, we’ve covered various forms of **Subject Verification**.
 
-By now, you know that there are three different ways we can write _High Value Acceptance Tests_.
+We learned that there was:
 
-- _high value unit_
-- _high value integration_
-- _high value e2e_
+- _Result Verification_
+- _State Verification_
 
-The high value unit test is the version which we execute against the core code — the **application & domain layers** of our system.
+And then finally:
 
-Because we run them against core code, they are super fast and isolated.
+- _Communication Verification._
 
-### What might be the reason we want to run these?
+What’s communication verification again? What’s it for?
 
-Ultimately, all of this horizontal decoupling exists so that we can **test our application at different scopes**. It’s very much about _focus_ and specificity.
+**Communication verification** is the final form of Subject Verification that concerned with **verifying attempted state changes** against _indirect outputs_.
 
-Here are a few reasons.
+### And why is this important?
 
-1. **When the application & domain logic is extremely complicated and we don’t get enough control at the higher levels**. When you’re running E2E tests, there are certain things that are either impossible to test, or just too clunky to test. This becomes especially true once we get into _Domain-Driven Design_. Think about creating a _Discord_ _Pomodoro Bot_. Imagine one of the features enabled everyone to chime in with what they were going to do in the next pomodoro. Imagine it allowed each user to break their work into _projects_ and _tasks_ and it kept track of all of that. A lot of statefulness. Your High Value Unit Tests operate at the scope of the application and domain logic, which enables you to inspect the objects that’ll get saved at a lower-level. You can check the relationships and side-effects easily.
-2. **Focus**. Being able to focus on _just the application and domain logic without worrying about&#xA0;_<!---->_**_persistence_**_, is a sort of psychological chunking technique._ We all know how scatterbrained we can get. Sometimes it’s a necessity because we push upon human limits. These tests enable you to break the problem down into smaller pieces to focus your energy more intently.
-3. **Faster feedback in your CI than E2e tests**. You can load these up as the first layer of your Deployment Pipeline!
-4. **Cost (more control over indirect inputs & outputs)**. Imagine you needed to integrate with a payments system. Well, there are a million different things that could happen here. Payments could succeed. They could fail. They could fail because the card is invalid. They could fail because of insufficient credits. Perhaps the card is an at risk card. There’s so much. Now, if you _don’t_ have access to a _sandbox_ environment for the payment system’s API, then you’re going to need to run tests against the real deal. But that might cost you money. Maybe you don’t want to be re-running tests over and over every few seconds running up the bill. A better option is use _Test Doubles_ (fake implementations) to test all those different scenarios and make sure _YOUR_ code behaves how it should if the indirect input/output (payment system API) misbehaves.
+Oftentimes, you want to validate **when** and **how you’re _ATTEMPTING TO CHANGE THE STATE_** of an **Indirect Output**.
 
-Just to name a few!
+I’ll give you two examples.
 
-## Writing high value unit tests
+**Example #1: Dropbox / Google Drive Sync**
 
-### 1. Setting up your high value test
+Synchronizing files is expensive. If I were to design the Dropbox or Google Sync functionality, it would be very important to ensure that we don’t attempt to synchronize a file (or an entire folder) unless it _actually_ changed.
 
-By now, we should have already decoupled from the outgoing adapters.
+What if we could _verify_ calls to a _job queue_ to start synchronizing. What if we could verify that we only started syncs when it was actually necessary? And what if we could verify that those sync jobs were called with the _correct_ files and folders to sync?
 
-In `registration.unit.ts`, set up a new, empty executable specification based on the gherkins acceptance test.
+That’d be ideal, wouldn’t it?
 
-### **2. Write the executable specification, setting the “test:unit” context/script**
+**Example #2: Calling a Stripe API to Bill a Customer**
 
-Use arrange-act-assert backwards to specify your test.
+Imagine trying to bill a customer the WRONG AMOUNT because some aspect of your domain and application layer code was off.
+
+You can test this functionality way ahead of time **before** you make that mistake with **high value unit tests** and Communication Verification.
+
+### Use a mixture of state, result & communication verification to enhance your tests
+
+These are more extreme examples, but in actuality, as we discussed in [3 Types of Verification](https://www.essentialist.dev/products/the-software-essentialist/categories/2154926214/posts/2166052479), you’re only _enhancing_ your tests by adding a mixture of _State, Result_ and _Communication Verification_.
+
+You know for certain that you should be attempting to `save` at the end of a successful use case, and that you **should not** be attempting to `save` at the end of a failed one.
+
+Sometimes it’s not necessary because you can verify what you want to verify with _Result Verification_ or _State Verification_, but it’s good to have this skill in your testing toolbelt.
+
+### What exactly is a test double?
+
+I define a test double as any object which _stands in_ for a real, production instance.
+
+And the main reason for test doubles is to **force program behaviour in one direction or another** to isolate a specific part of the system, to evoke and validate your program behaviour in different circumstances.
+
+- **a test double as a STUB** or **DUMMY** **just** fills in parameters lists or arguments
+- **a test double as a MOCK** implements some behaviour for an Indirect Input (and/or Indirect Output) which can influence the way your Subject Under Test behaves
+- **a test double as a FAKE** is basically the same thing as a Mock, it’s just called a different name
+- **a test double as a SPY** records the way it was called and provides methods to introspect the way it was called later; this is what we need to do **communication verification**
+
+At least, these are my definitions — but the differentiation isn’t all that important. Call them whatever you like in your tests, but it’s about the **intent and behaviour** of the test double.
+
+### What do spies do?
+
+Typically, when I wrote spies, I like to validate either:
+
+- _how many times something was called_
+- _if / how something was called (the arguments)_
+
+Therefore, when we turn your **user repos** or your other **infrastructure adapters** into spies, you’ll see Communication Verification statements like this:
 
 ```tsx
-...
+spy.methodWasCalledWith('method name', 'some argument') // true or false
+spy.methodWasCalledWith('method name', { id: 2, name: "Bob "}) // true or false
+spy.getTimesMethodCalled('sendEmail'); // number
+```
 
-beforeAll(async () => {
-  composition = CompositionRoot.createCompositionRoot(new Config('test:unit'));
-  fakeUserRepo = composition.getRepositories().users as InMemoryUserRepository;
+### There are 2 ways to implement spies
+
+I’ve found that there are fundamentally 2 ways to implement spies.
+
+You can either:
+
+1. use _polymorphic_ _hand-written test doubles_
+2. or you can use the _testing library’s mocking features_ to mock/patch the entire object or specific methods
+
+In this lesson, we’re going to see what **hand-written spies** look like.
+
+We’ll see how to use the testing library features in the “Incoming Contract Test” lesson.
+
+So then let’s do it!
+
+## Turning your userRepo into a hand-written spy
+
+Let’s take a look at the High Value Unit test again, which should be working by now.
+
+Looking at the success scenario `Successful registration with marketing emails accepted`, we’ll enhance this test using spies.
+
+### **1. Write the communication verification statement.**
+
+Let’s again start from the end of the test and add a communication verification statement like so.
+
+```tsx
+then('I should be granted access to my account', async () => {
+  expect(createUserResponse.id).toBeDefined();
+  expect(createUserResponse.email).toEqual(createUserInput.email);
+  expect(createUserResponse.firstName).toEqual(createUserInput.firstName);
+  expect(createUserResponse.lastName).toEqual(createUserInput.lastName);
+  expect(createUserResponse.username).toEqual(createUserInput.username);
+  
+  // And the user exists (State Verification)
+  const getUserResponse = await application.users.getUserByEmail(createUserInput.email);
+  expect(createUserInput.email).toEqual(getUserResponse.email);
+
+	// New! (communication verification)
+  expect(userRepoSpy.getTimesMethodCalled('save')).toEqual(1);
 })
+```
 
-afterEach(async () => {
-  await fakeUserRepo.reset();
-});
+What are we doing here?
 
-test('Successful registration with marketing emails accepted', ({ given, when, then, and }) => {
-  given('I am a new user', async () => {
-    createUserInput = new UserBuilder()
-      .makeCreateUserInputBuilder()
-      .withAllRandomDetails()
-      .withFirstName('Khalil')
-      .withLastName('Stemmler')
-      .buildCommand();
-  });
+We’re saying that we expect the user repo’s save method to have been called once!
 
-  when('I register with valid account details accepting marketing emails', async () => {
-    createUserResponse = await application.users.createUser(createUserInput);
-    addEmailToListResponse = await application.marketing.addEmailToList(createUserInput.email);
-  });
+Makes sense for this success scenario, right?
 
-  then('I should be granted access to my account', async () => {
-    expect(createUserResponse.id).toBeDefined();
-    expect(createUserResponse.email).toEqual(createUserInput.email);
-    expect(createUserResponse.firstName).toEqual(createUserInput.firstName);
-    expect(createUserResponse.lastName).toEqual(createUserInput.lastName);
-    expect(createUserResponse.username).toEqual(createUserInput.username);
-    
-    // And the user exists (State Verification)
-    const getUserResponse = await application.users.getUserByEmail(createUserInput.email);
-    expect(createUserInput.email).toEqual(getUserResponse.email);
+Then let’s actually implement the spy.
+
+We’ll call it a `InMemoryUserRepositorySpy`.
+
+Here are the relevant aspects from the test.
+
+```tsx
+defineFeature(feature, (test) => {
+	...
+  let userRepoSpy: InMemoryUserRepositorySpy;
+
+  beforeAll(async () => {
+    composition = CompositionRoot.createCompositionRoot(new Config('test:unit'));
+    application = composition.getApplication();
+    userRepoSpy = composition.getRepositories().users as InMemoryUserRepositorySpy
   })
 
-  and('I should expect to receive marketing emails', () => {
-    // Todo
+  afterEach(async () => {
+    ...
+    userRepoSpy.reset();
   });
-})
 ```
 
-Obviously, lots of stuff here won’t compile, but that’s okay for now.
+### **2. Turn your user repo into a spy, give it spy functionality & make the test pass.**
 
-Pay close attention to the `Config` object we’re using.
+Now that we have the test written, let’s make it pass by implementing the spy.
 
-To use different implementations, we’ll switch on the _config_.
-
-In your `beforeAll`, notice the use of the `test:unit` config.
+Due to how polymorphism works, you’re going to have to implement all of the functionality of a `UserRepo`, but you’ll do so using an _in memory_ implementation instead of talking to a database.
 
 ```tsx
-composition = CompositionRoot.createCompositionRoot(new Config('test:unit'));
+export class InMemoryUserRepositorySpy implements UsersRepository
+{ }
 ```
 
-And let’s look at the config object again.
+If you’re using GitHub Copilot or Cursor, you can do this really quickly without too much thinking. It’s all good, because we’re going to test it anyway in our contract tests.
 
-_shared/config/index.ts_
-
-```tsx
-export type Environment = "development" | "production" | "staging" | "ci";
-
-export type Script =
-  | "test:unit"
-  | "test:e2e"
-  | "start:dev"
-  | "start:prod"
-  | "test:infra";
-
-export class Config {
-  env: Environment;
-  script: Script;
-
-  constructor(script: Script) {
-    this.env = (process.env.NODE_ENV as Environment) || "development";
-    this.script = script;
-  }
-
-  getEnvironment() {
-    return this.env;
-  }
-
-  getScript() {
-    return this.script;
-  }
-}
-```
-
-### **4.3 Change the composition root to make it use a new one based on the context.**
-
-Now, within your composition root, you’re going to configure a different implementation based on the new environment.
-
-Within your composition (the _usersModule_), you’ll want to introduce a method to determine whether you should build a real userRepo or a fake one:
-
-_usersModule.ts_
-
-```tsx
-shouldBuildFakeRepository() {
-  return (
-    this.getScript() === "test:unit" ||
-    this.getEnvironment() === "development"
-  );
-}
-```
-
-That way, when we build our `usersModule`, we create the correct one based on the script and the environment.
-
-```tsx
-export class UsersModule {
-  private usersService: UsersService;
-  private usersController: UsersController;
-  private usersRepository: UsersRepository;
-
-  private constructor(
-    private db: Database,
-    private emailAPI: TransactionalEmailAPI,
-    config: Config,
-  ) {
-    super(config);
-    this.usersRepository = this.createUsersRepository();
-    this.usersService = this.createUsersService();
-    this.usersController = this.createUsersController();
-  }
-
-  static build(db: Database, emailAPI: TransactionalEmailAPI, config: Config) {
-    return new UsersModule(db, emailAPI, config);
-  }
-
-  private createUsersRepository() {
-    if (this.usersRepository) return this.usersRepository;
-    
-    // Use here!
-    if (this.shouldBuildFakeRepository) {
-      return new InMemoryUserRepository();
-    }
-
-    return new ProductionUserRepository(this.db.getConnection());
-  }
-}
-```
-
-Do you see? This is how we make our application composition **polymorphic**.
-
-We’ve also just invented the concept of an `InMemoryUserRepository`.
-
-Now let’s build it.
-
-### **4.4 Write the fake implementation of the user repo.**
-
-You’ll have to build a userRepo that adheres to the user repository interface. Set that up now.
+Here’s a bit of what mine spat out.
 
 ```tsx
 import { ValidatedUser } from "@dddforum/shared/src/api/users";
+import { Spy } from "../../../shared/testDoubles/spy";
 import { UsersRepository } from "../ports/usersRepository";
 import { CreateUserCommand } from "../usersCommand";
 import { User } from "@prisma/client";
 
-export class InMemoryUserRepository implements UsersRepository
+export class InMemoryUserRepositorySpy implements UsersRepository
 {
   private users: User[];
 
@@ -226,6 +193,55 @@ export class InMemoryUserRepository implements UsersRepository
   }
 
   save(user: ValidatedUser): Promise<User> {
+    this.addCall("save", [user]);
+    const newUser = {
+      ...user,
+      id: this.users.length > 0 ? this.users[this.users.length - 1].id + 1 : 1,
+      password: '',
+    };
+    this.users.push(newUser);
+    return Promise.resolve({ ...newUser, password: "password" });
+  }
+  
+  ...
+  // more
+}
+```
+
+All good, right?
+
+But what about those calls.. `getTimesMethodCalled`?
+
+Those don’t exist anywhere yet, so they’re probably still throwing errors in your test.
+
+Yep. Now we have to introduce the abstraction of a **spy**.
+
+### **3. Abstract the spy functionality**
+
+I’ll skip straight to the end.
+
+Here’s what my `InMemoryUserRepoSpy` will look like.
+
+```tsx
+import { ValidatedUser } from "@dddforum/shared/src/api/users";
+import { Spy } from "../../../shared/testDoubles/spy";
+import { UsersRepository } from "../ports/usersRepository";
+import { CreateUserCommand } from "../usersCommand";
+import { User } from "@prisma/client";
+
+export class InMemoryUserRepositorySpy
+  extends Spy<UsersRepository>
+  implements UsersRepository
+{
+  private users: User[];
+
+  constructor() {
+    super();
+    this.users = [];
+  }
+
+  save(user: ValidatedUser): Promise<User> {
+    this.addCall("save", [user]);
     const newUser = {
       ...user,
       id: this.users.length > 0 ? this.users[this.users.length - 1].id + 1 : 1,
@@ -273,105 +289,261 @@ export class InMemoryUserRepository implements UsersRepository
   }
 
   async reset() {
+    this.calls = [];
     this.users = [];
   }
 }
 ```
 
-This **fake implementation** is a _Test Double_.
+What’s going on here?
 
-We’ll talk more about these in the next lesson.
+Well, most of it is communicated here.
 
-### **4.5 Watch the test pass & do this for all of the tests.**
+```tsx
+export class InMemoryUserRepositorySpy
+  extends Spy<UsersRepository>
+  implements UsersRepository
+{
+```
 
-Now make everything that doesn’t compile, compile, jostling what needs to get jostled until your tests pass. This should be fairly minimal.
+Those _spy-like_ methods — I could have placed them directly onto `InMemoryUserRepositorySpy` and that would have been fine, but honestly, using a little bit of _Obvious Implementation_, I knew that I was going to have to do a lot of spying, and I’d have to do that with other objects as well.
+
+So we use **inheritance**.
+
+To not end up duplicating the same types of methods multiple times, I opted for a base `Spy` parent class.
+
+By `extends Spy<UsersRepository>`, we are saying that the `InMemoryUserRepositorySpy` is a **spy** of the type **UserRepository**. This gives us access to some neat things within the **Spy** base class.
+
+Check it out.
+
+```tsx
+type ValidMethodNames<T> = keyof T;
+
+interface Call<T> {
+  methodName: ValidMethodNames<T>;
+  args: any[];
+  context: any; // Additional contextual details about the call
+}
+
+export abstract class Spy<T> {
+  protected calls: Call<T>[];
+
+  constructor() {
+    this.calls = [];
+  }
+
+  protected addCall<MethodName extends ValidMethodNames<T>>(
+    methodName: MethodName,
+    args: any[],
+    context?: any,
+  ) {
+    const call: Call<T> = {
+      methodName,
+      args,
+      context,
+    };
+    this.calls.push(call);
+  }
+
+  getCalls(): Call<T>[] {
+    return this.calls;
+  }
+
+  getTimesMethodCalled<MethodName extends ValidMethodNames<T>>(
+    methodName: MethodName,
+  ) {
+    const calls = this.calls.filter((call) => call.methodName === methodName);
+    return calls.length;
+  }
+
+  reset() {
+    this.calls = [];
+  }
+}
+
+```
+
+Just so you know, all of this was done **by programming by wishful thinking**. Don’t get confused, I’m not a master with TypeScript types and all that. I just know how to specify what I want, and how to figure out how to get the language to do what I want it to do.
+
+And that’s how I’d approach any language or tool.
+
+Starting from the **subclass** (the `InMemoryUserRepoSpy` ), my focus was on expressing what I want to express. And then came the _how_. This base class was the how.
+
+So all this stuff of generics, getting type completion on the `MethodName` and so on — these are all things I remembered how to do on the fly not having done them for a long time, with a little bit of messing around with the implementation.
+
+### 4. Spy on the rest of the tests
+
+That should be enough to get your tests to pass. So make sure that they’re passing before we continue. Do this for all your tests that involve user repos. Make sure that you get a _save_ when you expect a save, and that you _don’t_ get a save when you don’t expect one.
+
+With this written once, we now have a valuable piece of testing infrastructure through which we can turn any of our test doubles into spies.
+
+And that’s what we’ll do in the next steps.
+
+## Spying on your marketing & notification APIs
+
+### **1. Write the communication verification statements for your marketing and notifications API calls.**
+
+Now let’s think about the other two infrastructure adapters — the _transactionalEmailAPI_ and the _contactListAPI_.
+
+How should they behave?
+
+Coming back to the successful registration feature.. it’s clear that the three command-like operations we perform against external infrastructure are:
+
+1. _**save to database (done already)**_
+2. _**send an email verification**_
+3. _**add the user to a contact list when the marketing option is selected**_
+
+```tsx
+// I expect the user repo to save the user to the database
+expect(userRepoSpy.getTimesMethodCalled('save')).toEqual(1);
+
+// I expect the transactional api to attempt to send mail
+expect(transactionalEmailAPISpy.getTimesMethodCalled('sendMail')).toEqual(1);
+
+// I expect the contact list api to attempt to add an email to the list
+expect(contactListAPISpy.getTimesMethodCalled('addEmailToList')).toEqual(1);
+```
+
+But again, we’re not going to call _real versions_ of the infrastructure adapters, so let’s write the communication verification statements.
+
+Here’s the updated success case..
+
+```tsx
+test('Successful registration with marketing emails accepted', ({ given, when, then, and }) => {
+  given('I am a new user', async () => {
+    createUserInput = new UserBuilder()
+      .makeCreateUserInputBuilder()
+      .withAllRandomDetails()
+      .withFirstName('Khalil')
+      .withLastName('Stemmler')
+      .buildCommand();
+  });
+
+  when('I register with valid account details accepting marketing emails', async () => {
+    createUserResponse = await application.users.createUser(createUserInput);
+    addEmailToListResponse = await application.marketing.addEmailToList(createUserInput.email);
+  });
+
+  then('I should be granted access to my account', async () => {
+    expect(createUserResponse.id).toBeDefined();
+    expect(createUserResponse.email).toEqual(createUserInput.email);
+    expect(createUserResponse.firstName).toEqual(createUserInput.firstName);
+    expect(createUserResponse.lastName).toEqual(createUserInput.lastName);
+    expect(createUserResponse.username).toEqual(createUserInput.username);
+    
+    // And the user exists (State Verification)
+    const getUserResponse = await application.users.getUserByEmail(createUserInput.email);
+    expect(createUserCommand.email).toEqual(getUserResponse.email);
+
+    expect(userRepoSpy.getTimesMethodCalled('save')).toEqual(1);
+
+    // Verify that an email has been sent (Communication Verification)
+    expect(transactionalEmailAPISpy.getTimesMethodCalled('sendMail')).toEqual(1);
+  })
+
+  and('I should expect to receive marketing emails', () => {
+    expect(addEmailToListResponse).toBeTruthy();
+    expect(contactListAPISpy.getTimesMethodCalled('addEmailToList')).toEqual(1);
+  });
+})
+```
+
+### **2. Create alternate versions of these as well for testing.**
+
+Go ahead now and repeat the same process, creating fake versions of both the contactListAPI and the transactionalEmailAPI.
+
+### **3. Adjust your composition root to handle these new ones.**
+
+And just as well, go ahead and adjust the composition root the same way we did it with the userRepo as well.
+
+### **4. Turn the external service adapters into spies as well.** And just as well, turn them both into spies.
+
+For example, the transactionalEmailAPISpy is pretty straightforward.
+
+```tsx
+import { Spy } from "../../../../shared/testDoubles/spy";
+import {
+  SendMailInput,
+  TransactionalEmailAPI,
+} from "../../ports/transactionalEmailAPI";
+
+export class TransactionalEmailAPISpy
+  extends Spy<TransactionalEmailAPI>
+  implements TransactionalEmailAPI
+{
+  constructor() {
+    super();
+  }
+
+  async sendMail(input: SendMailInput): Promise<boolean> {
+    this.addCall("sendMail", [input]);
+    return true;
+  }
+}
+```
+
+### **5. Make all your tests pass, adding these additional spies where necessary.**
+
+Do this for all of your tests where necessary.
 
 ## Your Turn!
 
-**Grading checklist**
+**Grading Checklist**
 
-- ✅ _I’ve written fake implementations of my&#xA0;_<!---->_**_external services_**_<!---->_&#xA0;and made sure that it’s what my high value unit test uses_
-- ✅ _I’ve written fake implementations of my&#xA0;_<!---->_**_user_**_<!---->_&#xA0;_<!---->_**_repository_**_<!---->_&#xA0;and made sure that it’s what my high value unit test uses_
-- ✅ _I’ve&#xA0;_<!---->_**_made all of the High Value Unit Test tests pass_**_<!---->_&#xA0;using the fake implementations_
-- ✅ _I’ve used both&#xA0;_<!---->_**_Result_**_<!---->_&#xA0;and&#xA0;_<!---->_**_State Verification_**_<!---->_&#xA0;in all of my tests._
+- 🔘 _I have used communication verification to verify that the **indirect outputs** have been called_
+    - _userRepo’s ‘”save” gets called when appropriate_
+    - _transactionalEmailAPI’s “sendEmail” gets called when appropriate_
+    - _marketingAPI’s “addToContactList” gets called when appropriate_ </aside>
 
 ## FAQ
 
-### “Why do we use Outgoing Contract test + High value Acceptance Test, instead of just using outgoing integration tests? It looks like we're doing integration testing with more work?”
+### Should you use hand-written spies or a testing library instead?
 
-- The green is a **high value unit test**, which means that it's core code (pure), and makes use of test doubles instead of the real production adapter so that the test is faster
-- The orange is a contract test, which validates all of the adapters at the same time, thereby creating test parity
-- We need the contract test because without it, we wouldn't have the psychological safety of knowing that our high value unit tests were sufficient (they are test doubles/mocks after all)
-- This is a lesser known technique to still be able to write high value unit tests as your primary high value tests... with the stability of knowing your mocks are in sync with the real implementations as well (see the Transitivity Principle)
+I prefer to use _hand-written spies_ for **outgoing** and _jest_ for **incoming**.
 
-### “That’s cool and all… but what additional benefits do we get from this testing strategy (in the image above High Value **_Unit_** Testing **+** **Contract Testing**), over adopting **ONLY** High Value **_Integration_** Testing?”
+You’ll see how we do the _incoming_ technique in “How to Write Incoming Adapter (Contract) Tests”
 
-Excellent questions.
+### Should you use Communication Verification to verify queries as well?
 
-The main reason is **focus**.
+No. It’s not recommended.
 
-In fact, that’s the entire message behind everything I do. Behind everything, we use **focus** to **go deeper** into the problems, so that we can solve them properly, once and for all. Increasing the quality of your **focus** leads **to mastery** of the problems at the root level.
+A _query_ is an implementation detail.
 
-Very practically, here are a few scenarios:
+A _query_ is always something you do to get the data (a how) before you make a state change based on that data (the what).
 
-**1) When you have no access to the infrastructure yet, you can start with high value unit tests**
+Focus on writing tests that verify the **What (commands/state changes)** because the **Hows (queries)** that support the **Whats** may very well change.
 
-Sometimes you don't have access to the infrastructure. This is common on the frontend, for example, when you're waiting for the backend team to get APIs implemented. Or you're waiting for someone to pay for access to a service.
+### So then, reiterated: how do you validate indirect outputs?
 
-What do you do? Wait?
+You’ll use either **State Verification** or **Communication Verification** because these two are all about state changes.
 
-No, in that case, you'd fake the integration using a test double.
+- State Verification is about the _new_ state of the indirect output
+- Communication Verification is about _attempted state changes_ to the indirect output
 
-And then what happens once the backend team implements the API?
+### Isn’t it possible to completely avoid the need for Communication Verification?
 
-You could either,
+Yes, it is.
 
-- a) turn your high value unit tests into high value integration tests (which is easy to do — you just flip a flag in your composition root), OR
-- b) add the production implementations of the high value integration tests
+But you’ll need to utilize the **functional core, imperative/reactive shell architecture**.
 
-**2) When you want FAST feedback in your Deployment Pipeline**
+With this architectural pattern, your application & domain layers _do not_ make state changes. They merely **return** side-effects.
 
-These tests are fast, so if you put them into the Commit Phase (or even using Husky in your local development environment) in the deployment pipeline, you don't need any infrastructure, and you can tell if your code works properly or not, quickly.
+That means that everywhere you see _userRepo.save_ or anything else transactional in the middle of your services — not happening in this architecture.
 
-**3) You can build your entire frontend's business logic without React -> better focus & problem decomposition**
+Instead, you return the side-effects and leave your **infrastructure layer** to persist all side effects.
 
-We haven't learned this yet, but you can model the entire frontend as an object similarly to how we deal with services on the backend, and from this, you can hook up react at the very end, starting with the tests to express all of the business functionality. Similar to #1.
+We’re taking a more object-oriented and imperative approach right now, because it’s what’s most common, but the functional approach is elegant, requires less complex testing, and I just think it’s safer in the long run.
 
-**4) Focus / overwhelm → leads to better focus & problem decomposition.**
-
-Sometimes it can be overwhelming to have to deal with everything all at the same time. some application/domains are just so complex, that you just want to focus in on that only.
-
-With high value unit tests, you can put the persistence and fetching away for later, and just make sure that it's right, then connect adapters later. **This is the primary reason**.
-
-It can be very discombobulating to flip between working on different abstractions. It's great to be able to just define the _contract_ for an external adapter, and then to finish what you're doing, and then focus on the adapters later as a separate activity.
-
-**5) Focus/overwhelm → leads to problem decomposition with a focus on the inputs & outputs → leads to the ability to introduce a functional core-imperative shell architecture.**
-
-An advanced reason for this technique is the idea of the functional core, imperative shell.
-
-Taking this approach, if you treat your application & domain layer as pure inputs & outputs, where your application & domain layer performs no side-effects, it merely returns the stuff that needs to get saved in a transaction upon return.
-
-That would mean _createUser_ would not _save_ anything.
-
-It would just return a UserCreatedEvent and a User, and that would get saved by the functional core. This architectural style is supported by the High Value Unit Test, which supports a core-code-oriented type of test.
-
----
-
-All this aside, I still think High Value Integration testing is _ideal_ most of the time, but it's just more expensive - and sometimes we might not have access to the infrastructure just yet.
-
-Ideally, one should aim to use the most production-like environment possible, so High Value Integration testing is going to usually be the best.
-
-But I think High Value Unit + Contract is a way to decompose the problem even further, which may sometimes be the required strategy depending on the scenario.
-
-Imagine trying to test a checkers game on the frontend. Maybe you don't yet know how you're going to translate a Drag and Drop npm library into a sort of infrastructure adapter, so you focus on the core functionality instead. I see it as zooming in and zooming out.
+It does take a fairly big mindset shift, and one could argue that it’s more advanced, though.
 
 ## Summary
 
-- A high value unit test is another way for you to test the main acceptance criteria — the _vertical slice/feature_ — against the application as pure core code.
-- High Value Unit Tests are run against the _service layer_ in 4 tiers, or the _application layer_ (as it’s known in the hexagonal architecture), where it validates both application layer code and domain layer code.
-- These tests are fast, isolated, and provide a lot of control to you as a test designer through the use of test doubles.
-- You can start writing high value unit tests alongside your e2e tests by simply cloning your e2e test specification and changing the composition root to compose your application in preparation for _high value unit tests_; such a configuration should build **test doubles** instead of production instances.
-- While it is more commonly understood how to do this on only the backend, you can also write these on the frontend as well.
+- Communication verification is final of the 3 forms of Subject Verification techniques.
+- It helps you verify attempted state changes against indirect outputs.
+- Test doubles come in various forms: _mocks, spies, fakes, stubs_.
+- Test doubles that perform **communication verification** are said to be _spies_.
+- You can implement test doubles as either hand-written test doubles or using a testing library like Jest.
+- I recommend hand-written test double for Outgoing Adapter test doubles and Jest for Incoming Adapter test doubles.
 
 If you have any questions or suggestions to improve this lesson, leave a comment below.
 

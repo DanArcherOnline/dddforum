@@ -1,3 +1,3 @@
 export interface TransactionalEmailAPI {
-  sendWelcomeEmail(email: string): Promise<void>;
+  sendMail(email: string): Promise<void>;
 }

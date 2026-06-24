@@ -1,6 +1,6 @@
 import { toPublicUser } from "./userView";
 import type { PublicUser } from "./userView";
-import type { UserModel } from "./userModel";
+import type { UsersRepository } from "./ports/usersRepository";
 import type { CreateUserParams, UpdateUserInput } from "@dddforum/shared/src/api/users";
 import type { TransactionalEmailAPI } from "../notifications/transactionalEmailAPI";
 import {
@@ -11,40 +11,30 @@ import {
 
 export class UserService {
   constructor(
-    private userModel: UserModel,
+    private userRepo: UsersRepository,
     private transactionalEmailAPI: TransactionalEmailAPI,
   ) {}
 
   async createUser(input: CreateUserParams): Promise<PublicUser> {
-    const existingByUsername = await this.userModel.findByUsername(input.username);
+    const existingByUsername = await this.userRepo.findUserByUsername(input.username);
     if (existingByUsername) throw new UsernameAlreadyTakenException();
 
-    const existingByEmail = await this.userModel.findByEmail(input.email);
+    const existingByEmail = await this.userRepo.findUserByEmail(input.email);
     if (existingByEmail) throw new EmailAlreadyInUseException();
 
-    try {
-      const user = await this.userModel.createUser(input);
-      await this.transactionalEmailAPI.sendWelcomeEmail(input.email);
-      return toPublicUser(user);
-    } catch (error) {
-      if (this.userModel.isUniqueConstraintError(error)) throw new EmailAlreadyInUseException();
-      throw error;
-    }
+    const user = await this.userRepo.save(input);
+    await this.transactionalEmailAPI.sendWelcomeEmail(input.email);
+    return toPublicUser(user);
   }
 
   async editUser(userId: number, data: UpdateUserInput): Promise<PublicUser> {
-    try {
-      const user = await this.userModel.updateUser(userId, data);
-      return toPublicUser(user);
-    } catch (error) {
-      if (this.userModel.isNotFoundError(error)) throw new UserNotFoundException();
-      if (this.userModel.isUniqueConstraintError(error)) throw new EmailAlreadyInUseException();
-      throw error;
-    }
+    const user = await this.userRepo.update(userId, data);
+    if (!user) throw new UserNotFoundException();
+    return toPublicUser(user);
   }
 
   async getUserByEmail(email: string): Promise<PublicUser> {
-    const user = await this.userModel.findByEmail(email);
+    const user = await this.userRepo.findUserByEmail(email);
     if (!user) throw new UserNotFoundException();
     return toPublicUser(user);
   }

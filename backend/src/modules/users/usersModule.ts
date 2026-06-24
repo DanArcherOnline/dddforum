@@ -1,9 +1,9 @@
 import { Database } from "../../shared/database/database";
 import { WebServer } from "../../shared/http/webServer";
-import { UserModel } from "./userModel";
+import { ProductionUserRepository } from "./adapters/productionUserRepository";
 import { UserService } from "./userService";
 import { UserController } from "./userController";
-import { TransactionalEmailAPI } from "../notifications/transactionalEmailAPI";
+import type { TransactionalEmailAPI } from "../notifications/transactionalEmailAPI";
 import { errorHandler } from "../../shared/errors";
 
 export class UsersModule {
@@ -24,7 +24,7 @@ export class UsersModule {
 
   private createUserService() {
     return new UserService(
-      new UserModel(this.dbConnection),
+      new ProductionUserRepository(this.dbConnection.getClient()),
       this.transactionalEmailAPI
     );
   }

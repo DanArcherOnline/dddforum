@@ -7,6 +7,10 @@ import { NotificationsModule } from "../modules/notifications/notificationsModul
 import { PostsModule } from "../modules/posts/postsModule";
 import { UsersModule } from "../modules/users/usersModule";
 import { MarketingModule } from "../modules/marketing/marketingModule";
+import type { UsersRepository } from "../modules/users/ports/usersRepository";
+import type { ContactListAPI } from "../modules/marketing/ports/contactListAPI";
+import type { UserService } from "../modules/users/userService";
+import type { MarketingService } from "../modules/marketing/marketingService";
 import { errorHandler } from "./errors";
 
 export class CompositionRoot {
@@ -47,13 +51,14 @@ export class CompositionRoot {
   }
 
   public createMarketingModule() {
-    return MarketingModule.build();
+    return MarketingModule.build(this.config);
   }
 
   public createUsersModule() {
     return UsersModule.build(
       this.dbConnection,
       this.notificationsModule.getTransactionalEmailAPI(),
+      this.config,
     );
   }
 
@@ -62,7 +67,10 @@ export class CompositionRoot {
   }
 
   public createWebServer() {
-    const port = this.config.script === "test:e2e" ? 3001 : Number(process.env.PORT) || 3000;
+    const port =
+      this.config.script === "test:e2e"
+        ? 3001
+        : Number(process.env.PORT) || 3000;
     return new WebServer({ port, env: this.config.env });
   }
 
@@ -71,8 +79,9 @@ export class CompositionRoot {
     this.usersModule.mountRouter(this.webServer);
     this.marketingModule.mountRouter(this.webServer);
 
-    this.webServer.getApplication().use(
-      (err: unknown, req: Request, res: Response, _next: NextFunction) => {
+    this.webServer
+      .getApplication()
+      .use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
         const rawOrigin = req.headers.origin;
         if (
           typeof rawOrigin === "string" &&
@@ -83,8 +92,7 @@ export class CompositionRoot {
           res.setHeader("Vary", "Origin");
         }
         errorHandler(err, req, res, _next);
-      },
-    );
+      });
   }
 
   getWebServer() {
@@ -93,5 +101,19 @@ export class CompositionRoot {
 
   getDBConnection() {
     return this.dbConnection;
+  }
+
+  getRepositories(): { users: UsersRepository; contactList: ContactListAPI } {
+    return {
+      users: this.usersModule.getUserRepository(),
+      contactList: this.marketingModule.getContactListAPI(),
+    };
+  }
+
+  getApplication(): { users: UserService; marketing: MarketingService } {
+    return {
+      users: this.usersModule.getUserService(),
+      marketing: this.marketingModule.getMarketingService(),
+    };
   }
 }

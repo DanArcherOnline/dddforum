@@ -1,10 +1,14 @@
 import { ProductionUserRepository } from "../../src/modules/users/adapters/productionUserRepository";
+import { InMemoryUserRepositorySpy } from "../../src/modules/users/adapters/inMemoryUserRepositorySpy";
 import { UserBuilder } from "@dddforum/shared/tests/support/builders/users";
 import { prisma } from "../../src/shared/database/prismaClient";
 import type { UsersRepository } from "../../src/modules/users/ports/usersRepository";
 
-describe("UsersRepository", () => {
-  let userRepos: UsersRepository[] = [new ProductionUserRepository(prisma)];
+describe("userRepo", () => {
+  let userRepos: UsersRepository[] = [
+    new ProductionUserRepository(prisma),
+    new InMemoryUserRepositorySpy()
+  ];
 
   it("can save and retrieve users by email", async () => {
     const createUserInput = new UserBuilder()

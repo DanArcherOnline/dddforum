@@ -1,0 +1,12 @@
+import type { Config } from 'jest';
+
+const config: Config = {
+  transform: {
+    '^.+\\.ts?$': ['ts-jest', { tsconfig: 'tests/tsconfig.json' }],
+  },
+  testEnvironment: 'node',
+  testMatch: ['**/tests/features/**/*.infra.ts'],
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+};
+
+export default config;

@@ -19,6 +19,8 @@
     "test": "jest",
     "test:dev": "jest --watchAll",
     "test:e2e": "jest --config jest.config.e2e.ts --passWithNoTests",
+    "test:infra": "jest --config jest.config.infra.ts --passWithNoTests",
+    "test:unit": "jest --config jest.config.unit.ts --passWithNoTests",
     "test:e2e:dev": "jest --config jest.config.e2e.ts --watch",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

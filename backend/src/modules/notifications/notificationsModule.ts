@@ -27,6 +27,7 @@ export class NotificationsModule extends Config {
   }
 
   shouldBuildFakeRepository() {
+    if (this.getScript() === "test:infra") return false;
     return (
       this.getScript() === "test:unit" ||
       this.getEnvironment() === "development"

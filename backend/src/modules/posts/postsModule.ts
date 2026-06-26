@@ -26,6 +26,10 @@ export class PostsModule {
     return new PostsController(this.postsService, errorHandler);
   }
 
+  public getPostsService(): PostsService {
+    return this.postsService;
+  }
+
   public getPostsController() {
     return this.postsController;
   }

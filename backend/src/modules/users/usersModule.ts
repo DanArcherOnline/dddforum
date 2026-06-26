@@ -5,14 +5,13 @@ import { InMemoryUserRepositorySpy } from "./adapters/inMemoryUserRepositorySpy"
 import { UserService } from "./userService";
 import { UserController } from "./userController";
 import type { UsersRepository } from "./ports/usersRepository";
-import { errorHandler } from "../../shared/errors";
 import { Config } from "../../shared/config";
 import { TransactionalEmailAPI } from "../notifications/ports/transactionalEmailAPI";
+import { Application } from "../../shared/application/applicationInterface";
 
 export class UsersModule extends Config {
   private usersRepository: UsersRepository;
   private userService: UserService;
-  private userController: UserController;
 
   private constructor(
     private dbConnection: Database,
@@ -22,7 +21,6 @@ export class UsersModule extends Config {
     super(config.script);
     this.usersRepository = this.createUsersRepository();
     this.userService = this.createUserService();
-    this.userController = this.createUserController();
   }
 
   static build(
@@ -52,10 +50,6 @@ export class UsersModule extends Config {
     return new UserService(this.usersRepository, this.transactionalEmailAPI);
   }
 
-  private createUserController() {
-    return new UserController(this.userService, errorHandler);
-  }
-
   public getUserRepository(): UsersRepository {
     return this.usersRepository;
   }
@@ -64,11 +58,8 @@ export class UsersModule extends Config {
     return this.userService;
   }
 
-  public getUserController() {
-    return this.userController;
-  }
-
-  public mountRouter(webServer: WebServer) {
-    webServer.mountRouter("/users", this.userController.getRouter());
+  public mountRouter(webServer: WebServer, application: Application) {
+    const controller = new UserController(application);
+    webServer.mountRouter("/users", controller.getRouter());
   }
 }

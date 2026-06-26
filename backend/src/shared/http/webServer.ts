@@ -1,10 +1,12 @@
 import express from "express";
 import cors from "cors";
 import { Server } from "http";
+import { Application } from "../application/applicationInterface";
 
 interface WebServerConfig {
   port: number;
   env: string;
+  application?: Application;
 }
 
 export class WebServer {

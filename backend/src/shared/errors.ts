@@ -1,6 +1,15 @@
 import type { NextFunction, Request, Response } from "express";
 import { AppException } from "./exceptions";
 
+export const Errors = {
+  EmailAlreadyInUse: "EmailAlreadyInUse",
+  UsernameAlreadyTaken: "UsernameAlreadyTaken",
+  UserNotFound: "UserNotFound",
+  ValidationError: "ValidationError",
+  ClientError: "ClientError",
+  ServerError: "ServerError",
+} as const;
+
 export type ErrorHandler = (
   err: unknown,
   req: Request,

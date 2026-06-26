@@ -6,11 +6,9 @@ import { CreateUserBuilder } from "@dddforum/shared/tests/support/builders/creat
 import { TextUtil } from "@dddforum/shared/src/utils/textUtils";
 import type { CreateUserParams } from "@dddforum/shared/src/api/users";
 import { CreateUserDTO } from "../../src/modules/users/CreateUserDTO";
-import {
-  EmailAlreadyInUseException,
-  InvalidRequestBodyException,
-  UsernameAlreadyTakenException,
-} from "../../src/shared/exceptions";
+import { InvalidRequestBodyException } from "../../src/shared/exceptions";
+import { Errors } from "../../src/shared/errors";
+import type { Result } from "../../src/shared/core/result";
 import type { PublicUser } from "../../src/modules/users/userView";
 import { DatabaseFixture } from "../support/fixtures/DatabaseFixture";
 
@@ -44,7 +42,7 @@ defineFeature(feature, (test) => {
     and,
   }) => {
     let createUserInput: CreateUserParams;
-    let createUserResponse: PublicUser;
+    let createUserResponse: Result<PublicUser>;
     let addEmailToListResponse: boolean;
 
     given("I am a new user", () => {
@@ -64,17 +62,18 @@ defineFeature(feature, (test) => {
 
     then("I should be granted access to my account", async () => {
       // Result verification
-      expect(createUserResponse.id).toBeDefined();
-      expect(createUserResponse.email).toEqual(createUserInput.email);
-      expect(createUserResponse.firstName).toEqual(createUserInput.firstName);
-      expect(createUserResponse.lastName).toEqual(createUserInput.lastName);
-      expect(createUserResponse.username).toEqual(createUserInput.username);
+      expect(createUserResponse.success).toBe(true);
+      expect(createUserResponse.data!.id).toBeDefined();
+      expect(createUserResponse.data!.email).toEqual(createUserInput.email);
+      expect(createUserResponse.data!.firstName).toEqual(createUserInput.firstName);
+      expect(createUserResponse.data!.lastName).toEqual(createUserInput.lastName);
+      expect(createUserResponse.data!.username).toEqual(createUserInput.username);
 
       // State verification
       const getUserResponse = await application.users.getUserByEmail(
         createUserInput.email,
       );
-      expect(createUserInput.email).toEqual(getUserResponse.email);
+      expect(createUserInput.email).toEqual(getUserResponse.data!.email);
     });
 
     and("I should expect to receive marketing emails", () => {
@@ -90,7 +89,7 @@ defineFeature(feature, (test) => {
     and,
   }) => {
     let createUserInput: CreateUserParams;
-    let createUserResponse: PublicUser;
+    let createUserResponse: Result<PublicUser>;
 
     given("I am a new user", () => {
       createUserInput = new CreateUserBuilder().withAllRandomDetails().build();
@@ -106,17 +105,18 @@ defineFeature(feature, (test) => {
 
     then("I should be granted access to my account", async () => {
       // Result verification
-      expect(createUserResponse.id).toBeDefined();
-      expect(createUserResponse.email).toEqual(createUserInput.email);
-      expect(createUserResponse.firstName).toEqual(createUserInput.firstName);
-      expect(createUserResponse.lastName).toEqual(createUserInput.lastName);
-      expect(createUserResponse.username).toEqual(createUserInput.username);
+      expect(createUserResponse.success).toBe(true);
+      expect(createUserResponse.data!.id).toBeDefined();
+      expect(createUserResponse.data!.email).toEqual(createUserInput.email);
+      expect(createUserResponse.data!.firstName).toEqual(createUserInput.firstName);
+      expect(createUserResponse.data!.lastName).toEqual(createUserInput.lastName);
+      expect(createUserResponse.data!.username).toEqual(createUserInput.username);
 
       // State verification
       const getUserResponse = await application.users.getUserByEmail(
         createUserInput.email,
       );
-      expect(createUserInput.email).toEqual(getUserResponse.email);
+      expect(createUserInput.email).toEqual(getUserResponse.data!.email);
     });
 
     and("I should not expect to receive marketing emails", () => {
@@ -157,7 +157,7 @@ defineFeature(feature, (test) => {
 
   test("Account already created with email", ({ given, when, then, and }) => {
     let existingUserInputs: CreateUserParams[];
-    let errors: unknown[];
+    let results: Result<PublicUser>[];
 
     given("a set of users already created accounts", async (table) => {
       type Row = { firstName: string; lastName: string; email: string };
@@ -175,18 +175,16 @@ defineFeature(feature, (test) => {
     });
 
     when("new users attempt to register with those emails", async () => {
-      errors = await Promise.all(
+      results = await Promise.all(
         existingUserInputs.map((existing) =>
-          application.users
-            .createUser(
-              new CreateUserBuilder()
-                .withFirstName(TextUtil.createRandomText(10))
-                .withLastName(TextUtil.createRandomText(10))
-                .withEmail(existing.email)
-                .withUsername(TextUtil.createRandomText(10))
-                .build(),
-            )
-            .catch((err) => err),
+          application.users.createUser(
+            new CreateUserBuilder()
+              .withFirstName(TextUtil.createRandomText(10))
+              .withLastName(TextUtil.createRandomText(10))
+              .withEmail(existing.email)
+              .withUsername(TextUtil.createRandomText(10))
+              .build(),
+          ),
         ),
       );
     });
@@ -195,8 +193,9 @@ defineFeature(feature, (test) => {
       "they should see an error notifying them that the account already exists",
       () => {
         // Result verification
-        for (const err of errors) {
-          expect(err).toBeInstanceOf(EmailAlreadyInUseException);
+        for (const result of results) {
+          expect(result.success).toBe(false);
+          expect(result.error).toBe(Errors.EmailAlreadyInUse);
         }
       },
     );
@@ -206,8 +205,8 @@ defineFeature(feature, (test) => {
       async () => {
         // State verification: each original email exists exactly once (no duplicates saved)
         for (const input of existingUserInputs) {
-          const user = await application.users.getUserByEmail(input.email);
-          expect(user).not.toBeNull();
+          const getResult = await application.users.getUserByEmail(input.email);
+          expect(getResult.data).not.toBeNull();
         }
       },
     );
@@ -215,7 +214,7 @@ defineFeature(feature, (test) => {
 
   test("Username already taken", ({ given, when, then, and }) => {
     let existingUserInputs: CreateUserParams[];
-    let errors: unknown[];
+    let results: Result<PublicUser>[];
 
     given(
       "a set of users have already created their accounts with valid details",
@@ -259,10 +258,8 @@ defineFeature(feature, (test) => {
             .withUsername(row.username)
             .build(),
         );
-        errors = await Promise.all(
-          newUserInputs.map((input) =>
-            application.users.createUser(input).catch((err) => err),
-          ),
+        results = await Promise.all(
+          newUserInputs.map((input) => application.users.createUser(input)),
         );
       },
     );
@@ -271,8 +268,9 @@ defineFeature(feature, (test) => {
       "they see an error notifying them that the username has already been taken",
       () => {
         // Result verification
-        for (const err of errors) {
-          expect(err).toBeInstanceOf(UsernameAlreadyTakenException);
+        for (const result of results) {
+          expect(result.success).toBe(false);
+          expect(result.error).toBe(Errors.UsernameAlreadyTaken);
         }
       },
     );

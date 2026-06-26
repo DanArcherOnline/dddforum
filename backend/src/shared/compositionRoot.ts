@@ -9,10 +9,9 @@ import { UsersModule } from "../modules/users/usersModule";
 import { MarketingModule } from "../modules/marketing/marketingModule";
 import type { UsersRepository } from "../modules/users/ports/usersRepository";
 import type { ContactListAPI } from "../modules/marketing/ports/contactListAPI";
-import type { UserService } from "../modules/users/userService";
-import type { MarketingService } from "../modules/marketing/marketingService";
 import { errorHandler } from "./errors";
 import { TransactionalEmailAPI } from "../modules/notifications/ports/transactionalEmailAPI";
+import { Application } from "./application/applicationInterface";
 
 export class CompositionRoot {
   private static instance: CompositionRoot | null = null;
@@ -68,17 +67,19 @@ export class CompositionRoot {
   }
 
   public createWebServer() {
+    const application = this.getApplication();
     const port =
       this.config.script === "test:e2e"
         ? 3001
         : Number(process.env.PORT) || 3000;
-    return new WebServer({ port, env: this.config.env });
+    return new WebServer({ port, env: this.config.env, application });
   }
 
   private mountRoutes() {
+    const application = this.getApplication();
     this.postsModule.mountRouter(this.webServer);
-    this.usersModule.mountRouter(this.webServer);
-    this.marketingModule.mountRouter(this.webServer);
+    this.usersModule.mountRouter(this.webServer, application);
+    this.marketingModule.mountRouter(this.webServer, application);
 
     this.webServer
       .getApplication()
@@ -117,9 +118,10 @@ export class CompositionRoot {
     };
   }
 
-  getApplication(): { users: UserService; marketing: MarketingService } {
+  getApplication(): Application {
     return {
       users: this.usersModule.getUserService(),
+      posts: this.postsModule.getPostsService(),
       marketing: this.marketingModule.getMarketingService(),
     };
   }

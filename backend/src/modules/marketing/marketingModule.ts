@@ -4,19 +4,17 @@ import { ContactListAPISpy } from "./adapters/contactListAPISpy";
 import { MarketingService } from "./marketingService";
 import { MarketingController } from "./marketingController";
 import type { ContactListAPI } from "./ports/contactListAPI";
-import { errorHandler } from "../../shared/errors";
 import { Config } from "../../shared/config";
+import { Application } from "../../shared/application/applicationInterface";
 
 export class MarketingModule extends Config {
   private contactListAPI: ContactListAPI;
   private marketingService: MarketingService;
-  private marketingController: MarketingController;
 
   private constructor(config: Config) {
     super(config.script);
     this.contactListAPI = this.createContactListAPI();
     this.marketingService = this.createMarketingService();
-    this.marketingController = this.createMarketingController();
   }
 
   static build(config: Config) {
@@ -42,10 +40,6 @@ export class MarketingModule extends Config {
     return new MarketingService(this.contactListAPI);
   }
 
-  private createMarketingController() {
-    return new MarketingController(this.marketingService, errorHandler);
-  }
-
   public getContactListAPI(): ContactListAPI {
     return this.contactListAPI;
   }
@@ -54,11 +48,8 @@ export class MarketingModule extends Config {
     return this.marketingService;
   }
 
-  public getMarketingController() {
-    return this.marketingController;
-  }
-
-  public mountRouter(webServer: WebServer) {
-    webServer.mountRouter("/marketing", this.marketingController.getRouter());
+  public mountRouter(webServer: WebServer, application: Application) {
+    const controller = new MarketingController(application);
+    webServer.mountRouter("/marketing", controller.getRouter());
   }
 }

@@ -39,7 +39,7 @@ export class UserService {
 
       const user = await this.userRepo.save(input);
       await this.transactionalEmailAPI.sendMail(input.email);
-      return { success: true, error: "", data: toPublicUser(user) };
+      return { success: true, error: {}, data: toPublicUser(user) };
     } catch {
       return { success: false, error: Errors.ServerError, data: undefined };
     }
@@ -54,7 +54,7 @@ export class UserService {
       if (!user) {
         return { success: false, error: Errors.UserNotFound, data: undefined };
       }
-      return { success: true, error: "", data: toPublicUser(user) };
+      return { success: true, error: {}, data: toPublicUser(user) };
     } catch {
       return { success: false, error: Errors.ServerError, data: undefined };
     }
@@ -66,7 +66,7 @@ export class UserService {
       if (!user) {
         return { success: false, error: Errors.UserNotFound, data: undefined };
       }
-      return { success: true, error: "", data: toPublicUser(user) };
+      return { success: true, error: {}, data: toPublicUser(user) };
     } catch {
       return { success: false, error: Errors.ServerError, data: undefined };
     }

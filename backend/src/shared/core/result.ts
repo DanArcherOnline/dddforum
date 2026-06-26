@@ -1,5 +1,5 @@
 export type Result<T> = {
   success: boolean;
-  error: string;
+  error: string | object;
   data: T | undefined;
 };

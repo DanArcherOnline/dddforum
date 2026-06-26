@@ -1,10 +1,8 @@
 import { toPublicUser } from "./userView";
 import type { PublicUser } from "./userView";
 import type { UsersRepository } from "./ports/usersRepository";
-import type {
-  CreateUserParams,
-  UpdateUserInput,
-} from "@dddforum/shared/src/api/users";
+import type { CreateUserParams, UpdateUserInput, ValidatedUser } from "@dddforum/shared/src/api/users";
+import { TextUtil } from "@dddforum/shared/src/utils/textUtils";
 import { Errors } from "../../shared/errors";
 import { TransactionalEmailAPI } from "../notifications/ports/transactionalEmailAPI";
 import type { Result } from "../../shared/core/result";
@@ -37,8 +35,21 @@ export class UserService {
         };
       }
 
-      const user = await this.userRepo.save(input);
-      await this.transactionalEmailAPI.sendMail(input.email);
+      const validatedUser: ValidatedUser = {
+        ...input,
+        password: TextUtil.createRandomText(10),
+      };
+
+      const user = await this.userRepo.save(validatedUser);
+
+      await this.transactionalEmailAPI.sendMail({
+        to: validatedUser.email,
+        subject: "Your login details to DDDForum",
+        text: `Welcome to DDDForum. You can login with the following details </br>
+      email: ${validatedUser.email}
+      password: ${validatedUser.password}`,
+      });
+
       return { success: true, error: {}, data: toPublicUser(user) };
     } catch {
       return { success: false, error: Errors.ServerError, data: undefined };

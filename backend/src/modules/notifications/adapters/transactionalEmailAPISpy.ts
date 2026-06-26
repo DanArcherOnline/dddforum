@@ -1,5 +1,5 @@
 import { Spy } from "../../../shared/testDoubles/spy";
-import type { TransactionalEmailAPI } from "../ports/transactionalEmailAPI";
+import type { SendMailInput, TransactionalEmailAPI } from "../ports/transactionalEmailAPI";
 
 export class TransactionalEmailAPISpy
   extends Spy<TransactionalEmailAPI>
@@ -9,7 +9,8 @@ export class TransactionalEmailAPISpy
     super();
   }
 
-  async sendMail(input: string): Promise<void> {
+  async sendMail(input: SendMailInput): Promise<boolean> {
     this.addCall("sendMail", [input]);
+    return true;
   }
 }

@@ -7,6 +7,8 @@ export type CreateUserParams = {
   username: string;
 };
 
+export type ValidatedUser = CreateUserParams & { password: string };
+
 export type CreateUserInput = CreateUserParams;
 
 export type UpdateUserInput = {

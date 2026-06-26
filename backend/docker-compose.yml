@@ -1,20 +1,20 @@
+version: '3.8'
+
 services:
   postgres:
-    image: postgres:16-alpine
-    container_name: dddforum-postgres
-    environment:
-      POSTGRES_USER: dddforum
-      POSTGRES_PASSWORD: dddforum
-      POSTGRES_DB: dddforum
+    image: postgres:16
+    container_name: development-postgres
     ports:
-      - "5432:5432"
+      # Explanation: Port 5000 on my machine will point to postgres
+      # running inside the container
+      - "5001:5432"
+    environment:
+      POSTGRES_DB: dddforum
+      POSTGRES_USER: dddforum_user
+      POSTGRES_PASSWORD: dddforum_password
     volumes:
-      - dddforum_pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dddforum -d dddforum"]
-      interval: 3s
-      timeout: 5s
-      retries: 5
+      - pg-data:/var/lib/postgresql/data
 
 volumes:
-  dddforum_pgdata:
+  pg-data:
+    driver: local

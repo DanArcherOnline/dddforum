@@ -1,1370 +1,292 @@
-# 💥 Action: Assignment Submission - Advanced Testing Best Practices
+# Setting up Docker For Local Development 
+#deploymentAndDelivery
 
-_Last updated: July 7th, 2024_
+_Last updated: Sept 20th, 2024_
 
-_Estimated time to complete: 3 hours_
+_Topics: docker, DevOps, development environments, “automate nearly everything”, encapsulate what varies, port mapping, containers, images_
 
-## Context
+_Major Topics: Deployment Pipelines, Architectural Components_
 
-Recall that our goal here is to gain enough experience with all of the most important types of tests.
+## Lesson Goals
 
-We’ve practiced E2e on both sides of the stack and in this assignment, we’ll practice the more advanced ones, which will require us to carve out a hexagonal architecture.
+- What’s the problem with our local development efforts & how do we fix it?
+- What is Docker & what do I need to know about it?
+- How to set up Docker for local development purposes
 
-## What you’ll practice
+## Where are we so far?
 
-> _Practice writing high value unit, integration, incoming & outgoing tests after decoupling from infrastructure code using the hexagonal architecture. This will complete exploration of the most important types of tests & how to write them._
+We’re getting ready to deploy and set up some tests in the deployment pipeline.
 
-## Pre-requisites
+That means we’re nearly done with all the `development` environment work and we’re going to focus on doing work in the `ci` , `testing` (also known as `staging`) and `production` environments.
 
-- ✨ How to handle edge cases using fixtures & builders
-- ✨ How to use an abstract factory pattern to encapsulate the creation of similar builders
-- ✨ How & why to use contracts, design patterns & dependency inversion to refactor your API to a Hexagonal (Ports & Adapters) architecture
-- ✨ How to use the Composition Root pattern to make your application dependencies dynamic, polymorphic, configurable and simplify test setup
-- ✨ How to mock, stub, spy & use the same E2E acceptance test suite to write High Value Unit & Integration Tests on either side of the stack
-- ✨ How to use tables to harden your test suite with hundreds of concrete examples
-- ✨  How to write incoming & outgoing contract tests
+That means we’re going to deploy our code to real production environments with real databases and services.
 
-## Requirements
+But we’ve got a problem.
 
-### Decoupling core code from infrastructure code to create a hexagonal architecture
+### Migrating to Docker for local development
 
-You knew this was coming.
+Until now, we’ve been using _sqlite_ for all of our tests.
 
-You’re going to decouple your core code from infrastructure code using contracts.
+That’s been great and all — it’s made it real easy for us to learn how to write tests locally, but in reality, this is not the way to go.
 
-In the land of _hexagonal architecture_, we call the interface — the contract — the _port;_ and we call the implementation _the adapter_.
+In reality, we want to test against the most **production-like environment as possible**.
 
-This means:
+Why?
 
-- your database (or repositories if you’ve used this pattern)
-- your transactionAPI,
-- your contactListAPI
+Again, parity.
 
-— all these, they’re **outgoing adapters**.
+The closer the `test`, `development` and `production` environments look and feel, the more certainty you have.
 
-We’ll need to use contracts to decouple these from core code.
+Not only that, but we’ve **actually run into an impasse**.
 
-On the other side, where your controller calls your services — this is also a case of infra code (controllers) touching core code (services).
+In fact, if you’ve been using Prisma so far, it turns out that they’ve done us solid in preventing some serious foot-cannonry by **constraining your database provider to a single option**.
 
-You’ll use what’s called an _applicationInterface_ to decouple core from infra.
+What does this mean?
 
-Both forms of decoupling will help in terms of writing different types of tests.
+It means if you’re using _sqlite_ in `development`, you gotta use _sqlite_ in `production` as well.
 
-### Outgoing adapter contract tests
+If you’re using _postgres_ in `production`, you’ve gotta use _postgres_ in `development` as well.
 
-The first type of test we’ll start with is the outgoing adapter test
+It means that we **won’t actually be able to deploy or test against a real production database like postgres unless we fix this config**.
 
-This type of test enables us to verify if we’re to talkingt o the database, the external services, anything external to our application — correctly
+This is actually **good**. This is a **best practice**.
 
-For this assignment, you’ll only be focused on the database (or repos), but if you chose to implement a real contactListPAI and a real transactionsEmailAPI, then you’ll be testing these as well.
+The last thing you want is to write integration tests, execute them locally, have everything go fine, and then when you run against a different type of database in production, things go awry.
 
-### High value unit tests
+You don’t want the inconsistency.
 
-Once you decouple from the outgoing adapters, you gain the ability to write high value unit tests.
+So for this reason, we’re going to switch to Postgres locally.
 
-These are tests which start from the service and **end** at the service, exercising the EXACT SAME acceptance test, but from a different scope.
+### Should I install Postgres manually?
 
-Instead of executing at the E2E scope, they execute against the **core code — the innermost application & business logic** for a feature**.**
+> “But it works on _my_ machine! I don’t know why it’s not working on _yours_.”
 
-### Using polymorphism to swap between test doubles & production code depending on the context
+Typically, before we get into this world of containers, we just install the services we need manually, directly to our local machines.
 
-Wait… services rely upon databases and external services… how will we handle this?
+_Just pulled the company code for a new job you started working at? Said you need to have elasticsearch, redis, and postgres installed? “No worries, I’ll just install those using brew or download them from the internet”, you say?_
 
-Using test doubles.
+Probably not the best idea.
 
-We’ll learn to build test doubles and how to swap dependencies at runtime depending on the context.
+Why? Again, systems thinking.
 
-We’ll see how you can do this with either hand-written mocks, Jest or some other testing library’s mocking utility.
+Your local machine is an entire environment in and of itself. And the environment affects the model which it contains (and in this case, we’re referring to your application and all of the services it requires).
 
-### Handling edge cases by controlling and verifying indirect inputs & outputs
+The problem is that there is a lot of variance in this system-model-environment setup:
 
-Here’s where **systems thinking** really shines.
+- **configuration**. who knows what sorts of configurations (or lack of configuration) you’ve got going on within your machine…
+- **service versioning**. who knows what version of postgres, redit, MySQL or whatever other required services we should be using…
+- **operating system.** who knows what operating system the original author(s) of the codebase were using to create the application…
 
-Once you completely decouple a core code feature (a service), it’s nothing more than inputs and outputs.
+So if you run into a lot of “it’s not working on my machine” problems, the reason is because you haven’t found a way to **stabilize the environment**.
 
-That’s not hard to see.
+You haven’t **encapsulated** the application (which includes the services) properly.
 
-But what’s not commonly understood is the concept of **indirect inputs & indirect outputs**.
+We gotta lock things down if we want consistency.
 
-Depending on the state of the services’ dependencies (the database state, the external service state), you can expect different behaviour — different edge cases.
+This is where Docker comes in.
 
-If the user was already created, we’ll get different behaviour from if it wasn’t.
+## The 4 keys of Docker
 
-That makes a database an **indirect input & output**.
+I’ll admit that I resisted Docker for a long time, but honestly — it’s a tremendous tool with a lot of use cases.
 
-We’ll make use of _Communication Verification **— this is the final of the 3 types of subject verification**._ It’ll give us the ability to determine and detect if we’ve called an **indirect output** when we should have (or if we should not have) depending on the scenario.
+In essence, here are the 4 main things you need to know.
 
-We’ll use test doubles to handle these indirect inputs & outputs.
+### 1. It’s a platform of “images”
 
-### Test parity
+**Docker** is a platform that allows you to create, deploy, and run applications in lightweight, isolated environments called containers, which are consistent across various systems.
 
-To keep our test code & production code in sync, we’ll need to use contract tests.
+### 2. “Images” are stabilized environments with predictable behaviour
 
-This is one of the most powerful testing techniques I know of.
+**Images** are snapshots or blueprints used to create containers; they contain the instructions for what a container should include and how it should behave.
 
-### High value integration tests
+You can get images for:
 
-Shockingly similar to high value unit tests, you’ll see how you can basically copy/clone the exact same test, change the test scope, and gain way more confidence, in just a few lines of code.
+- _**databases**_
+- _**services**_
+- _**web servers**_
+- _**applications**_
 
-That’s the power of polymorphism.
+Basically, a Docker container is an isolated environment running on a shared Linux kernel, which you can configure with any software you need, and then turn into an image to reproduce it repeatedly.
 
-### Incoming adapter contract tests
+Sometimes that means just installing _**postgres**_ onto it and then turning it into an image, and then pulling it over and over, so you can do so in a reproducible way.
 
-The last sort of test we’ll explore is the incoming contract test.
+Or maybe it’s one of your web apps. Maybe you want to package your backend into an image so that your frontend team can just easily point to it on their local machine to do their frontend work against.
 
-If you’ve got multiple different types of clients (like a desktop app, web app, mobile app) that all talk to the backend, you want to make sure that the communication doesn’t break down. You want to make sure that the API client works, and that it always returns the data you expect and calls the right use cases depending on the specifics and nuances of your clients.
+### 3. You run images as “containers” on your machine
 
-Just like how an outgoing test creates parity between test doubles and production code, the incoming test ensures your clients conform to the API and allows you to rest safely knowing your frontend or client code can rely on the API.
+**PostgreSQL in Docker** can be run as a container, which means you don't have to manually install or configure the database on your system; you simply pull an official PostgreSQL image and run it as a container.
 
-## Steps: How to complete this exercise
+And that’s what we’ll do!
 
-### **Step 1. Set up your project**
+### 4. You can “automate your infrastructure” with Docker
+
+This is a powerful approach.
+
+**Using Docker for local databases** allows you to easily start, stop, and remove databases without affecting your system, giving you a clean, isolated development environment that’s fast to spin up and tear down.
+
+So that’s what we’ll do.
+
+## How to set up Docker & a Dockerized Postgres Instance
+
+Let’s switch to a local dockerized Postgres instance.
+
+### 1. Get setup
 
 1. (If you haven't already) [clone the template to your GitHub and download it to your machine](https://github.com/stemmlerjs/the-software-essentialist)
 2. Go to the project folder for this assignment (head [here](https://github.com/stemmlerjs/the-software-essentialist/tree/main/ThePhasesOfCraftship/2_best_practice_first/strategicDesignPart1/exercises/1_RefactoringTo4Tiers) to see it on GitHub).
 3. npm install
-4. Set up your terminals (one for running tests, one for committing)
-5. Create a new branch (ex: _advancedTest_) using `git checkout -b <branchName>`
-6. Get started in the _start_ folder
+4. You’ll want to use the **main branch** for this one because we’ll be dealing with GitHub Actions
+5. Get started in the _start_ folder
 
-### Step 2: Decoupling (Outgoing) → Refactoring to outgoing ports & adapters (repos)
+### **2. Install docker desktop**.
 
-Remember that the entire reason we decouple is so that we can write tests.
+You can download Docker Desktop [here](https://www.docker.com/products/docker-desktop/).
 
-Therefore, let’s focus on the **outgoing ports** first.
+Install this on your machine and then start it up.
 
-At the moment, your database connection code could be pretty messy or unorganized.
+### **3. Create a docker compose w/ script**
 
-For reference, we currently have something like this:
+Next you’ll create a docker compose file with the target of generating a local postgres container.
 
-_database.ts_
+_packages/backend/docker-compose.yml_
 
-```
-import { PrismaClient } from "@prisma/client";
-import { generateRandomPassword } from "../utils";
+```yaml
+version: '3.8'
 
-export interface UsersPersistence {
-  save(user: NewUser): any;
-  findUserByEmail(email: string): any;
-  findUserByUsername(username: string): any;
-}
+services:
+  postgres:
+    image: postgres:latest
+    container_name: development-postgres
+    ports:
+      # Explanation: Port 5000 on my machine will point to postgres 
+      # running inside the container
+      - "5000:5432"
+    environment:
+      POSTGRES_DB: dddforum
+      POSTGRES_USER: dddforum_user
+      POSTGRES_PASSWORD: dddforum_password
+    volumes:
+      - pg-data:/var/lib/postgresql/data
 
-export class Database {
-  public users: UsersPersistence;
-  private connection: PrismaClient;
-
-  constructor() {
-    this.connection = new PrismaClient();
-    this.users = this.buildUsersPersistence();
-  }
-
-  getConnection() {
-    return this.connection;
-  }
-
-  async connect() {
-    await this.connection.$connect();
-  }
-
-  private buildUsersPersistence(): UsersPersistence {
-    return {
-      save: this.saveUser.bind(this),
-      findUserByEmail: this.findUserByEmail.bind(this),
-      findUserByUsername: this.findUserByUsername.bind(this),
-    };
-  }
-
-  private async saveUser(user: any) {
-    const { email, firstName, lastName, username } = user;
-    return await this.connection.$transaction(async () => {
-      const user = await this.connection.user.create({
-        data: {
-          email,
-          username,
-          firstName,
-          lastName,
-          password: generateRandomPassword(10),
-        },
-      });
-      
-      const member = await this.connection.member.create({
-        data: { userId: user.id },
-      });
-      return { user, member };
-    });
-  }
-
-  private async findUserByEmail(email: string) {
-    return this.connection.user.findFirst({ where: { email } });
-  }
-
-  private async findUserByUsername(username: string) {
-    return this.connection.user.findFirst({ where: { username } });
-  }
-}
-
+volumes:
+  pg-data:
+    driver: local
 ```
 
-What’s the goal?
+Allow me to explain what’s going on here:
 
-We want to separate code out into _ports & adapters_, concretions and implementations.
-
-Take a look at the following structure.
-
-This is what you’re moving towards.
-
-The best thing to do is to start with the **ports (the interfaces)**.
-
-That means I would first clarify the _userRepo_ and _postRepo_ interfaces.
-
-When you do this, make sure you _document_ all the associated types (dtos, input responses, output responses) as strictly as you can. You’re completely inverting the dependency relationship here.
-
-_shared/database/database.ts_
-
-```tsx
-import { UserRepo } from "../../modules/users/userRepo";
-import { PostRepo } from "../../modules/posts/postRepo";
-
-export interface Database {
-  users: UserRepo;
-  posts: PostRepo;
-}
-```
-
-_users/usersRepo.ts_
-
-```tsx
-import { ValidatedUser } from "@dddforum/shared/src/api/users";
-import { User } from "@prisma/client";
-
-export interface UsersRepository {
-  findUserByEmail(email: string): Promise<User | null>;
-  save(user: ValidatedUser): Promise<User>;
-  findById(id: number): Promise<User | null>;
-  delete(email: string): Promise<void>;
-  findUserByUsername(username: string): Promise<User | null>;
-  update(id: number, props: Partial<ValidatedUser>): Promise<User | null>;
-}
-```
-
-This sets us up to write the first set of outgoing contract tests for the user repo.
-
-When you do this, you’ll notice that some things might have to change. Some code might be off, some types might not quite work. That’s good and that’s normal. Every time we write a test, we’re working from the outside-in, and we’re forcing our code to converge to what we say it must be. Good. Make the changes to the code which will support your test
-
-One of such changes is the addition of the **abstract factory pattern** in terms of creating the correct builder for the job.
-
-```tsx
-import { PrismaClient } from "@prisma/client";
-import { ProductionUserRepository } from "../adapters/productionUserRepository";
-import { UserBuilder } from '@dddforum/shared/tests/support/builders/users'
-import { UsersRepository } from "./usersRepository";
-
-describe("userRepo", () => {
-  let userRepos: UsersRepository[] = [
-    new ProductionUserRepository(new PrismaClient()),
-  ];
-
-  it("can save and retrieve users by email", () => {
-    let createUserInput = new UserBuilder()
-      .makeValidatedUserBuilder()
-      .withAllRandomDetails()
-      .build()
-
-    userRepos.forEach(async (userRepo) => {
-      let savedUserResult = await userRepo.save({
-        ...createUserInput,
-        password: '',
-      });
-      let fetchedUserResult = await userRepo.findUserByEmail(
-        createUserInput.email,
-      );
-
-      expect(savedUserResult).toBeDefined();
-      expect(fetchedUserResult).toBeDefined();
-      expect(savedUserResult.email).toEqual(fetchedUserResult?.email);
-    });
-  });
-
-  it("can find a user by username", () => {
-    let createUserInput = new UserBuilder()
-      .makeValidatedUserBuilder()
-      .withAllRandomDetails()
-      .build();
-
-    userRepos.forEach(async (userRepo) => {
-      let savedUserResult = await userRepo.save({
-        ...createUserInput,
-        password: "",
-      });
-      let fetchedUserResult = await userRepo.findUserByUsername(
-        createUserInput.username,
-      );
-
-      expect(savedUserResult).toBeDefined();
-      expect(fetchedUserResult).toBeDefined();
-      expect(savedUserResult.username).toEqual(fetchedUserResult?.username);
-    });
-  });
-});
-
-```
-
-Nice! And now let’s not forget to adjust the service code, which may have relied upon a database object. Invert the dependency relationship by getting your `UserService` to reply upon _interfaces_ instead of _concretions_.
-
-```tsx
-export class UsersService {
-  constructor(
-    private repository: UsersRepository, // This should be done
-    private emailAPI: TransactionalEmailAPI, // This is next
-  ) {}
-
-  async createUser(userData: CreateUserCommand) {
-    const existingUserByEmail = await this.repository.findUserByEmail(
-      userData.email,
-    );
-    if (existingUserByEmail) {
-      throw new EmailAlreadyInUseException(userData.email);
-    }
-
-    const existingUserByUsername = await this.repository.findUserByUsername(
-      userData.username,
-    );
-    if (existingUserByUsername) {
-      throw new UsernameAlreadyTakenException(userData.username);
-    }
+- **version**: This is the docker compose file format. We’re using a relatively recent version, which gives us the main Docker features.
     
-    const validatedUser: ValidatedUser = {
-      ...userData.props,
-      password: TextUtil.createRandomText(10)
-    }
+- **services**: This is where we explain the containers we want to run. In this case, only one: **postgres**.
     
-    const prismaUser = await this.repository.save(validatedUser);
-
-    await this.emailAPI.sendMail({
-      to: validatedUser.email,
-      subject: "Your login details to DDDForum",
-      text: `Welcome to DDDForum. You can login with the following details </br>
-      email: ${validatedUser.email}
-      password: ${validatedUser.password}`,
-    });
-
-    return prismaUser;
-  }
-```
-
-### **Step 3**: Decoupling (Outgoing) → Decoupling the notifications & marketing APIs from core code
-
-You saw this in the previous step, but since we’re working to decouple all outgoing _services_ and _database connections_ (basically, all of the infrastructure dependencies) from core code, let’s decouple the external adapters as well.
-
-Yet again, we do this by introducing a **port** through which an **adapter** can implement.
-
-And here’s how we’ll do it.
-
-Previously, you may have implemented these with empty implementations… which I said you’re OK to do in case you don’t want to _have to_ register for email services. This is just a course we’re taking here, after all. But, yeah - if you wanted to get the real experience. Register, hook it up.
-
-But for the majority of students, I expect, this is what the contact list API might look like first time around.
-
-```tsx
-export class ContactListAPI {
-  async addEmailToList(email: string): Promise<boolean> {
-    // Do the actual work
-    console.log(
-      `MailchimpContactList: Adding ${email} list... for production usage.`,
-    );
-    return true;
-  }
-}
-
-```
-
-Well now, we actually want to be explicit about the difference between a **production** and a **testing/development** implementation.
-
-So again. Polymorphism.
-
-Set up your **port**.
-
-```tsx
-export interface ContactListAPI {
-  addEmailToList(email: string): Promise<boolean>;
-}
-```
-
-Set up your **production instance** (which you’re free to not actually implement).
-
-```tsx
-import { ContactListAPI } from "../../ports/contactListAPI";
-
-export class MailchimpContactList implements ContactListAPI {
-  async addEmailToList(email: string): Promise<boolean> {
-    // Do the actual work
-    console.log(
-      `MailchimpContactList: Adding ${email} list... for production usage.`,
-    );
-    return true;
-  }
-}
-```
-
-And shortly, we’ll set up the **test instances** (as shown by the _contactListSpy_).
-
-So far so good.
-
-Do this same thing for your **notifications module**, adjusting any code in the composition root, your services, and anything else where change ripples.
-
-By the end of this, you will have fully decoupled from outgoing infrastructure. Great work!
-
-### **Step 4: High Value Unit** → Express the expressive high value unit tests & adjust your module composition to provide fake implementations
-
-We are now poised to write our high value unit tests.
-
-Here’s where it gets interesting.
-
-You’re going to use fake implementations of your outgoing infrastructure to keep your core code pure.
-
-**4.1. Set up your high value unit test**. In `registration.unit.ts`, set up a new, empty executable specification based on the gherkins acceptance test.
-
-**4.2 Write the test executable specification w/ a new context config.** Use arrange-act-assert backwards to specify your test.
-
-```tsx
-...
-
-beforeAll(async () => {
-  composition = CompositionRoot.createCompositionRoot(new Config('test:unit'));
-  fakeUserRepo = composition.getRepositories().users as InMemoryUserRepository;
-})
-
-afterEach(async () => {
-  await fakeUserRepo.reset();
-});
-
-test('Successful registration with marketing emails accepted', ({ given, when, then, and }) => {
-  given('I am a new user', async () => {
-    createUserCommand = new UserBuilder()
-      .makeCreateUserCommandBuilder()
-      .withAllRandomDetails()
-      .withFirstName('Khalil')
-      .withLastName('Stemmler')
-      .buildCommand();
-  });
-
-  when('I register with valid account details accepting marketing emails', async () => {
-    createUserResponse = await application.users.createUser(createUserCommand);
-    addEmailToListResponse = await application.marketing.addEmailToList(createUserCommand.email);
-  });
-
-  then('I should be granted access to my account', async () => {
-    expect(createUserResponse.id).toBeDefined();
-    expect(createUserResponse.email).toEqual(createUserCommand.email);
-    expect(createUserResponse.firstName).toEqual(createUserCommand.firstName);
-    expect(createUserResponse.lastName).toEqual(createUserCommand.lastName);
-    expect(createUserResponse.username).toEqual(createUserCommand.username);
+- **postgres:** This is the name of the service (container). It's using **Postgres** as the database.
     
-    // And the user exists (State Verification)
-    const getUserResponse = await application.users.getUserByEmail(createUserCommand.email);
-    expect(createUserCommand.email).toEqual(getUserResponse.email);
-  })
+    Inside the `postgres` service:
+    
+    - **`image: postgres:latest`**: Specifies that the latest version of the official Postgres image will be pulled from Docker Hub to create the container.
+        
+    - **`container_name: development-postgres`:** This sets a custom name for the container. Instead of a random name, it will always be called `development-postgres`.
+        
+    - **`ports:`**
+        
+        This section defines how the container ports are mapped to the host machine.
+        
+        - `"5000:5432"`:This maps port **5432** (the default Postgres port inside the container) to port **5000** on your local machine.
+            - So when you access `localhost:5000` on your machine, it will connect to Postgres running inside the container on port **5432**.
+    - **`environment:`**
+        
+        Environment variables for Postgres are set here:
+        
+        - `POSTGRES_DB: dddforum`:Creates a database named **`dddforum`**.
+        - `POSTGRES_USER: dddforum_user`:Sets the username to **`dddforum_user`**.
+        - `POSTGRES_PASSWORD: dddforum_password`:Sets the password to **`dddforum_password`**.
+    - **`volumes:`**
+        
+        Volumes allow you to persist data across container restarts. In this case, you have a named volume (`pg-data`), which maps to the Postgres data directory inside the container.
+        
+        - **`pg-data:/var/lib/postgresql/data`**: This binds the **pg-data** volume (defined below) to the folder inside the container where Postgres stores its data (`/var/lib/postgresql/data`).
+- `volumes:`This defines named volumes that are shared between your host machine and the container. Named volumes allow persistent storage, even if the container is deleted.
+    
+    - **`pg-data:`**
+        
+        This is the volume that will store the Postgres database files. It uses the **local** driver (which is the default) to store data on the host machine in a specific location.
+        
+    - **`driver: local`**:
+        
+        Specifies the storage driver as **local**, meaning the data will be saved on your local machine’s filesystem.
+        
 
-  and('I should expect to receive marketing emails', () => {
-    // Todo
-  });
-})
+Overall, we create a named container (`development-postgres`) running the latest version of Postgres. We then map the container's port **5432** to port **5000** on your local machine for easy access, and a persistent volume (`pg-data`) to save the database data locally so that it’s not lost if the container is removed.
+
+### 4. Update your environment variables, scripts & configuration
+
+You’ll also need to update your environment variables for development.
+
+_backend/.env.development_
+
+```bash
+DATABASE_URL=postgresql://dddforum_user:dddforum_password@localhost:5000/dddforum
+NODE_ENV=development
 ```
 
-Obviously, lots of stuff here won’t compile, but that’s okay for now.
+To make it easy to repeatedly start your database, add a script to your package.json like so.
 
-Pay close attention to the `Config` object we’ve invented.
+_packages/backend/package.json_
 
-To use different implementations, we’ll switch on the _config_.
-
-In your `beforeAll`, notice the use of the `test:unit` config.
-
-```tsx
-composition = CompositionRoot.createCompositionRoot(new Config('test:unit'));
+```json
+"test:e2e": "jest -c jest.config.e2e.ts",
+"start:db:dev": "docker-compose up -d"
 ```
 
-Take specific note of the config object.
+And finally, you’ll switch from _sqlite_ to _postgres_ in your prisma config.
 
-_shared/config/index.ts_
+packages/backend/prisma/schema.prisma
 
-```tsx
-export type Environment = "development" | "production" | "staging" | "ci";
-
-export type Script =
-  | "test:unit"
-  | "test:e2e"
-  | "start:dev"
-  | "start:prod"
-  | "test:infra";
-
-export class Config {
-  env: Environment;
-  script: Script;
-
-  constructor(script: Script) {
-    this.env = (process.env.NODE_ENV as Environment) || "development";
-    this.script = script;
-  }
-
-  getEnvironment() {
-    return this.env;
-  }
-
-  getScript() {
-    return this.script;
-  }
+```yaml
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 ```
 
-**4.3 Change the composition root to make it use a new one based on the context.**
+### **5. Run your tests to confirm**.
 
-Now, within your composition root, you’re going to create a different implementation based on it.
+You want to confirm that when you run your tests — all of them — that they all still work and the E2E and integration tests make use of your postgres database still. You’ll have to re-seed and re-migrate to get set up with your new database.
 
-Somewhere, you’ll want to introduce a method like so:
+## FAQ
 
-_usersModule_
+### What’s the difference between Docker and Docker Compose?
 
-```tsx
-shouldBuildFakeRepository() {
-  return (
-    this.getScript() === "test:unit" ||
-    this.getEnvironment() === "development"
-  );
-}
-```
+**Docker** itself is used to manage individual containers. We typically do this one at a time by creating, running, and stopping single instances. Basically, it’s command-line usage.
 
-That way, when we build our `usersModule`, we create the correct one.
+**Docker Compose**, however, is the tool that you’ll more likely be using because it gives you the ability to define and manage **multi-container** Docker applications using a YAML file to configure multiple services (e.g., a web app and its database) that work together.
 
-```tsx
-export class UsersModule {
-  private usersService: UsersService;
-  private usersController: UsersController;
-  private usersRepository: UsersRepository;
+In other words, **Docker** focuses on running one container at a time, while **Docker Compose** simplifies the process of managing and orchestrating multiple interconnected containers.
 
-  private constructor(
-    private db: Database,
-    private emailAPI: TransactionalEmailAPI,
-    config: Config,
-  ) {
-    super(config);
-    this.usersRepository = this.createUsersRepository();
-    this.usersService = this.createUsersService();
-    this.usersController = this.createUsersController();
-  }
+With **Docker**, you manually start each container with individual `docker run` commands, but **Docker Compose** allows you to start all related containers (e.g., backend, frontend, database) simultaneously with `docker-compose up`.
 
-  static build(db: Database, emailAPI: TransactionalEmailAPI, config: Config) {
-    return new UsersModule(db, emailAPI, config);
-  }
+Admittedly, we’re only using a single service right now… and we **will not** be _containerizing_ our application (when you turn your backend or frontend into a container).
 
-  private createUsersRepository() {
-    if (this.usersRepository) return this.usersRepository;
-    if (this.shouldBuildFakeRepository) {
-      return new InMemoryUserRepository();
-    }
+Instead, what we’re really get out of Docker Compose is the ability to declare what we want in a declarative way.
 
-    return new ProductionUserRepository(this.db.getConnection());
-  }
-}
-```
+## Your Turn!
 
-We’ve just invented the concept of an `InMemoryUserRepository`.
+**Dockerized local dev & testing environment**
 
-Now, let’s build it.
+- ✅ _I have set up Docker & Docker Compose on my machine_
+- ✅ _I have switched my prisma config to use the postgres docker container instance instead_
+- ✅ _I have confirmed that my application uses a postgres docker container in both dev and test mode_
+- ✅ _I have confirmed that my e2e tests in dev run against a test docker postgres instance_
+- ✅ _I have confirmed that my e2e tests in test mode run against a docker postgres instance_
+- ✅ _I have confirmed that my e2e tests for frontend and backend both still work_
+- ✅ _I have confirmed that all of my high value integration tests also work_
 
-**4.4 Write the fake implementation of the user repo.**
+## Summary
 
-You’ll have to build a userRepo that adheres to the user repository interface. Set that up now.
+- Docker is a platform where you can create consistent and reproducible environments, services, applications avoiding issues with configuration, service versions, and operating systems.
+- We switch from SQLite to Postgres for local development to ensure parity between development and production environments; it’s a good practice and often, our tools won’t enable us to do anything different.
+- To set up Postgres locally without installing it manually, we use Docker Compose, which enables us to document the service using YAML files.
 
-```tsx
-import { ValidatedUser } from "@dddforum/shared/src/api/users";
-import { UsersRepository } from "../ports/usersRepository";
-import { CreateUserCommand } from "../usersCommand";
-import { User } from "@prisma/client";
+If you have any questions or suggestions to improve this lesson, leave a comment below.
 
-export class InMemoryUserRepository implements UsersRepository
-{
-  private users: User[];
-
-  constructor() {
-    super();
-    this.users = [];
-  }
-
-  save(user: ValidatedUser): Promise<User> {
-    const newUser = {
-      ...user,
-      id: this.users.length > 0 ? this.users[this.users.length - 1].id + 1 : 1,
-      password: '',
-    };
-    this.users.push(newUser);
-    return Promise.resolve({ ...newUser, password: "password" });
-  }
-
-  findById(id: number): Promise<User | null> {
-    return Promise.resolve(this.users.find((user) => user.id === id) || null);
-  }
-
-  delete(email: string): Promise<void> {
-    const index = this.users.findIndex((user) => user.email === email);
-    if (index !== -1) {
-      this.users.splice(index, 1);
-    }
-    return Promise.resolve();
-  }
-
-  async update(
-    id: number,
-    props: Partial<CreateUserCommand>,
-  ): Promise<User | null> {
-    const userIndex = this.users.findIndex((user) => user.id === id);
-    if (userIndex !== -1) {
-      this.users[userIndex] = { ...this.users[userIndex], ...props };
-      return Promise.resolve(this.users[userIndex]);
-    }
-
-    return Promise.resolve(null);
-  }
-
-  async findUserByEmail(email: string): Promise<User | null> {
-    return Promise.resolve(
-      this.users.find((user) => user.email === email) || null,
-    );
-  }
-
-  async findUserByUsername(username: string): Promise<User | null> {
-    return Promise.resolve(
-      this.users.find((user) => user.username === username) || null,
-    );
-  }
-
-  async reset() {
-    this.users = [];
-  }
-}
-
-```
-
-**4.5 Watch the test pass & do this for all of the tests.**
-
-Now make everything that doesn’t compile, compile, jostling what needs to get jostled until your tests pass. This should be fairly minimal.
-
-### Step 5: High Value Unit → Turn your user repo into a spy for communication verification
-
-**5.1 Write the communication verification statement.** The beauty of using these fake implementations is that we can also perform communication verification to verify that they were in fact, called.
-
-Let’s again start from the test and add a communication verification statement like so.
-
-```tsx
-then('I should be granted access to my account', async () => {
-  expect(createUserResponse.id).toBeDefined();
-  expect(createUserResponse.email).toEqual(createUserCommand.email);
-  expect(createUserResponse.firstName).toEqual(createUserCommand.firstName);
-  expect(createUserResponse.lastName).toEqual(createUserCommand.lastName);
-  expect(createUserResponse.username).toEqual(createUserCommand.username);
-  
-  // And the user exists (State Verification)
-  const getUserResponse = await application.users.getUserByEmail(createUserCommand.email);
-  expect(createUserCommand.email).toEqual(getUserResponse.email);
-
-	// New! (communication verification)
-  expect(fakeUserRepo.getTimesMethodCalled('save')).toEqual(1);
-})
-```
-
-**5.2 Turn your user repo into a spy, give it spy functionality & make the test pass.**
-
-First I’m going to show you the adjusted _InMemoryUserRepo_ which is now called `InMemoryUserRepositorySpy` and then I’ll show you the **spy** base class.
-
-Here’s the `InMemoryUserRepoSpy`.
-
-```tsx
-import { ValidatedUser } from "@dddforum/shared/src/api/users";
-import { Spy } from "../../../shared/testDoubles/spy";
-import { UsersRepository } from "../ports/usersRepository";
-import { CreateUserCommand } from "../usersCommand";
-import { User } from "@prisma/client";
-
-export class InMemoryUserRepositorySpy extends Spy<UsersRepository>
-  implements UsersRepository
-{
-  private users: User[];
-
-  constructor() {
-    super();
-    this.users = [];
-  }
-
-  save(user: ValidatedUser): Promise<User> {
-    this.addCall("save", [user]);
-    const newUser = {
-      ...user,
-      id: this.users.length > 0 ? this.users[this.users.length - 1].id + 1 : 1,
-      password: '',
-    };
-    this.users.push(newUser);
-    return Promise.resolve({ ...newUser, password: "password" });
-  }
-  
-  ...
-
-  async reset() {
-    this.calls = [];
-    this.users = [];
-  }
-}
-```
-
-When I first wrote this, I put everything you’re about to see in the next step, in this single file, which is actually _correct_, because we want to refactor we see duplication x3, remember?
-
-But over the next few steps, you’ll see why I’ve chosen to move the complexity down a layer.
-
-**5.3 Abstract the spy functionality**. Here’s the actual spy functionality.
-
-Remember that the `protected` scope means a method is only accessible via a subclass.
-
-And there’s some funky polymorphism stuff we’re doing with keys, types, generics and so on. You can refer back the lessons on these.
-
-```tsx
-type ValidMethodNames<T> = keyof T;
-
-interface Call<T> {
-  methodName: ValidMethodNames<T>;
-  args: any[];
-  context: any; // Additional contextual details about the call
-}
-
-export abstract class Spy<T> {
-  protected calls: Call<T>[];
-
-  constructor() {
-    this.calls = [];
-  }
-
-  protected addCall<MethodName extends ValidMethodNames<T>>(
-    methodName: MethodName,
-    args: any[],
-    context?: any,
-  ) {
-    const call: Call<T> = {
-      methodName,
-      args,
-      context,
-    };
-    this.calls.push(call);
-  }
-
-  getCalls(): Call<T>[] {
-    return this.calls;
-  }
-
-  getTimesMethodCalled<MethodName extends ValidMethodNames<T>>(
-    methodName: MethodName,
-  ) {
-    const calls = this.calls.filter((call) => call.methodName === methodName);
-    return calls.length;
-  }
-
-  reset() {
-    this.calls = [];
-  }
-}
-
-```
-
-Make sure your tests pass before moving on.
-
-Make sure that you get a _save_ when you expect a save, and that you _don’t_ get a save when you don’t expect one.
-
-With this written once, we now have a valuable piece of testing infrastructure through which we can turn any of our test doubles into spies.
-
-And that’s what we’ll do in the next steps.
-
-### Step 6: High Value Unit → Turn your marketing and notifications implementations into spies for communication verification
-
-**6.1 Write the communication verification statements for your marketing and notifications API calls.**
-
-Now let’s think about the other two infrastructure adapters — the _transactionalEmailAPI_ and the _contactListAPI_. How should they behave?
-
-In a successful registration, it’s clear we that the three command-like operations we perform against external infrastructure are:
-
-1. _**save to database (done already)**_
-2. _**send an email verification**_
-3. _**add the user to a contact list when the marketing option is selected**_
-
-```tsx
-// I expect the user repo to save the user to the database
-expect(userRepoSpy.getTimesMethodCalled('save')).toEqual(1);
-
-// I expect the transactional api to attempt to send mail
-expect(transactionalEmailAPISpy.getTimesMethodCalled('sendMail')).toEqual(1);
-
-// I expect the contact list api to attempt to add an email to the list
-expect(contactListAPISpy.getTimesMethodCalled('addEmailToList')).toEqual(1);
-```
-
-But again, we’re not going to call _real versions_ of the infrastructure adapters, so let’s write the communication verification statements.
-
-Here’s the updated success case..
-
-```tsx
-test('Successful registration with marketing emails accepted', ({ given, when, then, and }) => {
-  given('I am a new user', async () => {
-    createUserCommand = new UserBuilder()
-      .makeCreateUserCommandBuilder()
-      .withAllRandomDetails()
-      .withFirstName('Khalil')
-      .withLastName('Stemmler')
-      .buildCommand();
-  });
-
-  when('I register with valid account details accepting marketing emails', async () => {
-    createUserResponse = await application.users.createUser(createUserCommand);
-    addEmailToListResponse = await application.marketing.addEmailToList(createUserCommand.email);
-  });
-
-  then('I should be granted access to my account', async () => {
-    expect(createUserResponse.id).toBeDefined();
-    expect(createUserResponse.email).toEqual(createUserCommand.email);
-    expect(createUserResponse.firstName).toEqual(createUserCommand.firstName);
-    expect(createUserResponse.lastName).toEqual(createUserCommand.lastName);
-    expect(createUserResponse.username).toEqual(createUserCommand.username);
-    
-    // And the user exists (State Verification)
-    const getUserResponse = await application.users.getUserByEmail(createUserCommand.email);
-    expect(createUserCommand.email).toEqual(getUserResponse.email);
-
-    expect(userRepoSpy.getTimesMethodCalled('save')).toEqual(1);
-
-    // Verify that an email has been sent (Communication Verification)
-    expect(transactionalEmailAPISpy.getTimesMethodCalled('sendMail')).toEqual(1);
-  })
-
-  and('I should expect to receive marketing emails', () => {
-    expect(addEmailToListResponse).toBeTruthy();
-    expect(contactListAPISpy.getTimesMethodCalled('addEmailToList')).toEqual(1);
-  });
-})
-```
-
-**6.2 Create alternate versions of these as well for testing.**
-
-Go ahead now and repeat the same process, creating fake versions of both the contactListAPI and the transactionalEmailAPI.
-
-**6.3 Adjust your composition root to handle these new ones.**
-
-And just as well, go ahead and adjust the composition root the same way we did it with the userRepo as well.
-
-**6.4 Turn the external service adapters into spies as well.** And just as well, turn them both into spies.
-
-For example, the transactionalEmailAPISpy is pretty straightforward.
-
-```tsx
-import { Spy } from "../../../../shared/testDoubles/spy";
-import {
-  SendMailInput,
-  TransactionalEmailAPI,
-} from "../../ports/transactionalEmailAPI";
-
-export class TransactionalEmailAPISpy
-  extends Spy<TransactionalEmailAPI>
-  implements TransactionalEmailAPI
-{
-  constructor() {
-    super();
-  }
-
-  async sendMail(input: SendMailInput): Promise<boolean> {
-    this.addCall("sendMail", [input]);
-    return true;
-  }
-}
-```
-
-**6.5 Make all your tests pass, adding these additional spies where necessary.**
-
-Do this for all of your tests where necessary.
-
-### Step 7: Contract (Outgoing) → Contract test all your userRepo implementations
-
-Test-production-code parity is really important. If we use test doubles locally, how will we know if they’ll also work in production?
-
-Let’s fix that now.
-
-**7.1 Add the other user repo to your contract test.**
-
-You only have to change one line:
-
-```tsx
-describe("userRepo", () => {
-  let userRepos: UsersRepository[] = [
-    new ProductionUserRepository(new PrismaClient()),
-    new InMemoryUserRepositorySpy()
-  ];
-  ...
-})
-```
-
-That’s it.
-
-Now run the test again.
-
-**7.2 Confirm it works, fix it if it doesn’t — you now have production-test-code parity.**
-
-Recall that this is the dynamic we’re working with.
-
-So long as both of your tests (high value unit + contract) work, you can rest easy that your test doubles are not robbing you of the confidence you need in your codebase.
-
-### Step 8: **High Value Integration** → Duplicate & adjust your High Value Unit to High Value Integration
-
-Now let’s write the high value integration test version of the same test.
-
-**8.1 Copy your unit test to registration.infra.ts.**
-
-Self explanatory step, but you can basically just copy your registration.unit.ts to a `registration.infra.ts` file.
-
-```
-- features
-  - registration
-    - registration.e2e.ts
-    - registration.infra.ts
-    - registration.unit.ts
-```
-
-**8.2 Change the context of the test in the composition root config.**
-
-What’s different?
-
-Very little.
-
-However, this little line here is important:
-
-```tsx
-composition = CompositionRoot.createCompositionRoot(new Config('test:infra'));
-```
-
-Consider how this might change your application composition at runtime.
-
-Here’s what you want:
-
-- _use the real user repo_
-- _use the real transaction api_
-- _use the real marketing / contact list api_
-
-Add the correct code in your corresponding modules to make it so.
-
-**8.3 Remove communication verification statements, confirming using real user repo and real services interactions.**
-
-Remove the communication verification statements anymore because we’re making real calls to infrastructure.
-
-And if you want to confirm that you’re at the very least _calling_ the right methods, well — that’s what the high value unit tests are for.
-
-The integration tests are for confirming it all actually talks to each other.
-
-Make sure all your tests pass.
-
-### Step 9: **Decoupling (Incoming) → Decoupling to an Application Interface**
-
-We’re nearly done.
-
-It’s time to take a look at the incoming side of the architecture now.
-
-**9.1 Wrote application interface.** First thing is to represent the application interface. This is the contract through which any incoming infrastructure client (be it a GraphQL server, HTTP server, xyz server) should know **how to** message your core code **when it’s injected**.
-
-```tsx
-import { MarketingService } from "../../modules/marketing/marketingService"
-import { PostService } from "../../modules/posts/postService"
-import { UserService } from "../../modules/users/usersService"
-
-export interface Application {
-  user: UserService;
-  posts: PostService;
-  marketing: MarketingService;
-}
-```
-
-**9.2 Build the object in the composition root.** With this change, you’ll have to re-wire the way you compose your application because it starts top down from the interface.
-
-```tsx
-import { Application } from "../application/applicationInterface";
-import { Config } from "../config";
-import { Database } from "../database";
-import { WebServer } from "../http";
-import {
-  UsersModule,
-  PostsModule,
-  NotificationsModule,
-  MarketingModule,
-} from "@dddforum/backend/src/modules";
-
-export class CompositionRoot {
-  private static instance: CompositionRoot | null = null;
-
-  private webServer: WebServer;
-  private dbConnection: Database;
-  private config: Config;
-
-  private usersModule: UsersModule;
-  private marketingModule: MarketingModule;
-  private postsModule: PostsModule;
-  private notificationsModule: NotificationsModule;
-
-  public static createCompositionRoot(config: Config) {
-    if (!CompositionRoot.instance) {
-      CompositionRoot.instance = new this(config);
-    }
-    return CompositionRoot.instance;
-  }
-
-  private constructor(config: Config) {
-    this.config = config;
-    this.dbConnection = this.createDBConnection();
-    this.notificationsModule = this.createNotificationsModule();
-    this.marketingModule = this.createMarketingModule();
-    this.usersModule = this.createUsersModule();
-    this.postsModule = this.createPostsModule();
-    this.webServer = this.createWebServer();
-    this.mountRoutes();
-  }
-
-  createNotificationsModule() {
-    return NotificationsModule.build(this.config);
-  }
-
-  createMarketingModule() {
-    return MarketingModule.build(this.config);
-  }
-
-  createUsersModule() {
-    return UsersModule.build(
-      this.dbConnection,
-      this.notificationsModule.getTransactionalEmailAPI(),
-      this.config,
-    );
-  }
-
-  createPostsModule() {
-    return PostsModule.build(this.dbConnection, this.config);
-  }
-
-  getApplication(): Application {
-    return {
-      users: this.usersModule.getUsersService(),
-      posts: this.postsModule.getPostsService(),
-      marketing: this.marketingModule.getMarketingService(),
-    };
-  }
-  
-  ...
-}
-```
-
-**9.3 Adjust the dependency relationship throughout associated objects.**
-
-You’ll likely have to adjust relationships and inject dependencies a little bit differently based on this re-arrangement.
-
-For example, you’ll see differences in:
-
-_building the webserver in composition_
-
-```tsx
-  createWebServer() {
-    const application = this.getApplication();
-    return new WebServer({ port: 3000, application });
-  }
-```
-
-_controllers using the application object instead_
-
-```tsx
-import express from 'express';
-import { Errors } from '../../shared/errors/errors';
-import { CreateUserCommand, EditUserCommand, GetUserByEmailQuery } from '@dddforum/shared/src/api/users'
-import { Application } from '../../shared/application/applicationInterface'
-
-export class UserController {
-  constructor (private application: Application) {
-    
-  }
-
-  async createUser (req: express.Request, res: express.Response) {
-    const command: CreateUserCommand = req.body;
-    const result = await this.application.user.createUser(command);
-    
-    if (result.success) {
-      return res.status(201).json(result);
-    } else {
-      switch (result.error) {
-        case Errors.EmailAlreadyInUse:
-        case Errors.UsernameAlreadyTaken:
-          return res.status(409).json(result)
-        case Errors.ValidationError:
-        case Errors.ClientError:
-          return res.status(400).json(result)
-        case Errors.ServerError:
-        default:
-          return res.status(500).json(result);
-      }
-    }
-  }
-
-  async editUser (req: express.Request, res: express.Response) {
-    const command: EditUserCommand = {
-      ...req.body,
-      id: Number(req.params.userId)
-    };
-    const result = await this.application.user.editUser(command);
-
-    if (result.success) {
-      return res.status(200).json(result);
-    } else {
-      switch(result.error) {
-        case Errors.EmailAlreadyInUse:
-        case Errors.UsernameAlreadyTaken:
-          return res.status(409).json(result)
-        case Errors.ValidationError:
-        case Errors.ClientError:
-          return res.status(400).json(result)
-        case Errors.ServerError:
-        default:
-          return res.status(500).json(result);
-      }
-    }
-  }
-
-  async getUserByEmail (req: express.Request, res: express.Response)  {
-    const query: GetUserByEmailQuery = {
-      email: req.query.email as string
-    };
-
-    const result = await this.application.user.getUserByEmail(query);
-
-    if (result.success) {
-      return res.status(200).json(result);
-    } else {
-      switch(result.error) {
-        case Errors.UserNotFound:
-          return res.status(404).json(result)
-        case Errors.UsernameAlreadyTaken:
-          return res.status(409).json(result)
-        case Errors.ValidationError:
-        case Errors.ClientError:
-          return res.status(400).json(result)
-        case Errors.ServerError:
-        default:
-          return res.status(500).json(result);
-      }
-    }
-  }
-}
-```
-
-Complete this decoupling on the incoming side.
-
-### Step 10: Contract (Incoming) → Contract test your API using Jest mocks
-
-Finally, let’s write the incoming contract tests.
-
-These tests are meant to verify your apiClients, and to make sure that requests, regardless of the protocol (RESTful, GraphQL, etc) point to the correct application use cases / services, and get called with the correct arguments.
-
-**10.1 created api registration test file with infra**. First step is to set up one more test file.
-
-```
-- tests
-  - api
-    - registration.api.infra.ts
-```
-
-**10.2 Wrote the integration test using Jest to spy on whichever use case you want to test at a time.**
-
-For this one, we’ll use Jest to spy on calls to the application.
-
-Allow me to explain this code.
-
-```tsx
-import { createAPIClient } from "@dddforum/shared/src/api";
-import { UserBuilder } from "@dddforum/shared/tests/support/builders/users";
-import { CompositionRoot } from "../../src/shared/compositionRoot";
-import { Config } from "../../src/shared/config";
-
-describe("users http API", () => {
-  const apiClient = createAPIClient("<http://localhost:3000>");
-  const config = new Config("test:infra");
-
-  const composition = CompositionRoot.createCompositionRoot(config);
-  const server = composition.getWebServer();
-
-  const application = composition.getApplication();
-
-  let createUserSpy: jest.SpyInstance;
-
-  beforeAll(async () => {
-    await server.start();
-    createUserSpy = jest.spyOn(application.users, 'createUser');
-  });
-
-  afterEach(() => {
-    createUserSpy.mockClear();
-  });
-
-  afterAll(async () => {
-    await server.stop();
-  });
-
-  it("can create users", async () => {
-    const createUserParams = new UserBuilder()
-      .makeCreateUserCommandBuilder()
-      .withAllRandomDetails()
-      .withFirstName("Khalil")
-      .withLastName("Stemmler")
-      .build();
-
-    const createUserResponseStub = new UserBuilder()
-      .makeValidatedUserBuilder()
-      .withEmail(createUserParams.email)
-      .withFirstName(createUserParams.firstName)
-      .withLastName(createUserParams.lastName)
-      .withUsername(createUserParams.username)
-      .build();
-
-      createUserSpy.mockResolvedValue(createUserResponseStub);
-
-    // Act
-    // Use the client library to make the api call (pass through as much
-    // uncertainty as possible)
-    await apiClient.users.register(createUserParams);
-
-    // Communication: Expect it to have called the correct use case
-    expect(application.users.createUser).toHaveBeenCalledTimes(1);
-  });
-});
-
-```
-
-- You’ll run the test in **test:infra** to signify that it’s an integration test
-- You’ll create a Jest spy (this is a framework spy, not a hand-written one we’ve used) using `let createUserSpy: jest.SpyInstance`.
-- You’ll set up the interception using `createUserSpy = jest.spyOn(application.users, 'createUser');`.
-- Then you’ll create a **request object** and you’ll create an **intended response object** that you hope you’ll receive for that call.
-- Finally, you’ll set up your mocked createUser to return this intended response object with `createUserSpy.mockResolvedValue(createUserResponseStub);`
-
-Why are we doing this?
-
-Understand that this test is more about confirming that you can **make it through the entirety of the Express** config than anything else.
-
-Sometimes your web server config or RESTful API endpoints aren’t configured correctly, even though your high value unit and outgoing integration tests are perfect.
-
-**10.4 Ran all other unit, integration, e2e tests and confirmed that they work**.
-
-We’ve done a lot of stuff here.
-
-Make sure that they all work.
-
-If so… **Congratulations!**
-
-You’ve just completed the hardest part of the course thus far.
-
-## **How to know when you’re finished**
-
-Use the following grading checklist to self-evaluate (and evaluate others' assignment submissions) to see the assignment has been done correctly.
-
-### **Grading Checklist**
-
-_**Horizontal Architecture & Decoupling to Ports & Adapters**_
-
-- 🔘 _I have decoupled my database from my application using repositories_
-- 🔘 _I have decoupled from external services using wrappers/service facades_
-- 🔘 _I have decoupled from the incoming controller using an applicationInterface_
-
-_**Outgoing Contract Tests**_
-
-_For my UserRepo contract test, both the production and test implementations of a UserRepo have the following:_
-
-- 🔘 _can successfully ‘save’ & retrieve and item_
-- 🔘 _can ‘getAllUsers’ has at least one success & one failure case_
-- 🔘 _can ‘getByEmail’ has at least one success & one failure case_
-- 🔘 _can ‘getByUsername’ has at least one success & one failure case_
-
-_**High Value Unit & Integration Tests**_
-
-- 🔘 _All of my backend unit, integration & e2e tests use the following acceptance test_
-    
-    ```gherkin
-    Feature: Registration
-    	As a new user,
-    	I want to register as a Member
-    	So that I can vote on posts, ask questions, and earn points for discounts.
-    
-    	# Success scenarios
-    	@backend @frontend
-    	Scenario: Successful registration with marketing emails accepted
-    		Given I am a new user
-    		When I register with valid account details accepting marketing emails
-    		Then I should be granted access to my account
-    		And I should expect to receive marketing emails
-    
-    	@backend
-    	Scenario: Successful registration without marketing emails accepted
-    		Given I am a new user
-    		When I register with valid account details declining marketing emails
-    		Then I should be granted access to my account
-    		And I should not expect to receive marketing emails
-    
-    	# Failure scenarios
-    	@backend
-    	Scenario: Invalid or missing registration details
-    		Given I am a new user
-    		When I register with invalid account details
-    		Then I should see an error notifying me that my input is invalid
-    		And I should not have been sent access to account details
-    
-    	@backend
-    	Scenario: Account already created w/ email
-    		Given a set of users already created accounts
-    			| firstName | lastName | email             |
-    			| John      | Doe      | john@example.com  |
-    			| Alice     | Smith    | alice@example.com |
-    			| David     | Brown    | david@example.com |
-    		When new users attempt to register with those emails
-    		Then they should see an error notifying them that the account already exists
-    		And they should not have been sent access to account details
-    
-    	@backend
-    	Scenario: Username already taken
-    		Given a set of users have already created their accounts with valid details
-    			| firstName | lastName | username     | email              |
-    			| John      | Doe      | thechosenone | john1@example.com  |
-    			| Alice     | Smith    | chillblinton | alice2@example.com |
-    			| David     | Brown    | greenday     | david3@example.com |
-    		When new users attempt to register with already taken usernames
-    			| firstName | lastName | username     | email                 |
-    			| Bill      | Bob      | thechosenone | billy@billbob.com     |
-    			| Max       | Samson   | chillblinton | maxsamson@example.com |
-    			| Will      | Steff    | greenday     | willsteff@example.com |
-    		Then they see an error notifying them that the username has already been taken
-    		And they should not have been sent access to account details
-    
-    ```
-    
-    - 🔘 _All of my backend unit, integration & e2e tests pass_
-    - 🔘 _I have ensured all tests are idempotent_
-    - 🔘 _High value unit tests run extremely fast with no coupling to infrastructure_
-    - 🔘 _High value integration tests make use of a **real** production repository (though unimplemented marketingAPI and transactionalEmailAPIs are okay)_
-
-_**Using Test Doubles & Communication Verification**_
-
-- 🔘 _I have used communication verification to verify that the **indirect outputs** have been called_
-    - _userRepo’s ‘”save” gets called when appropriate_
-    - _transactionalEmailAPI’s “sendEmail” gets called when appropriate_
-    - _marketingAPI’s “addToContactList” gets called when appropriate_
-
-_**Incoming Contract Tests**_
-
-_For my Users API, for any of the API calls:_
-
-- 🔘 _has at least one success case & one failure case_
-
-_For my Marketing API, for any of the API calls:_
-
-- 🔘 _has at least one success case & one failure case_
-
-_For both, all contract (incoming) tests:_
-
-- 🔘 _I have verified that API calls the correct application use cases (services’ methods) using jest mocks_ </aside>
+As always, To Mastery.

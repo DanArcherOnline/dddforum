@@ -127,6 +127,13 @@ async function seed() {
       update: comment,
     });
   }
+
+  // Sync sequences after explicit-id inserts so autoincrement works correctly
+  await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence('"User"', 'id'), COALESCE(MAX(id), 0)) FROM "User"`;
+  await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence('"Member"', 'id'), COALESCE(MAX(id), 0)) FROM "Member"`;
+  await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence('"Post"', 'id'), COALESCE(MAX(id), 0)) FROM "Post"`;
+  await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence('"Vote"', 'id'), COALESCE(MAX(id), 0)) FROM "Vote"`;
+  await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence('"Comment"', 'id'), COALESCE(MAX(id), 0)) FROM "Comment"`;
 }
 
 seed();

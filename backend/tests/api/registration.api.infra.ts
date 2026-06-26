@@ -69,6 +69,6 @@ describe("users http API", () => {
 
     expect(application.users.createUser).toHaveBeenCalledTimes(1);
     expect(response.success).toBe(false);
-    expect(response.error.code).toBeUndefined();
+    expect(response.error.code).toBe(Errors.EmailAlreadyInUse);
   });
 });

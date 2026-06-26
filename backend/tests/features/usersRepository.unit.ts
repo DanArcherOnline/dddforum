@@ -3,12 +3,22 @@ import { InMemoryUserRepositorySpy } from "../../src/modules/users/adapters/inMe
 import { UserBuilder } from "@dddforum/shared/tests/support/builders/users";
 import { prisma } from "../../src/shared/database/prismaClient";
 import type { UsersRepository } from "../../src/modules/users/ports/usersRepository";
+import { DatabaseFixture } from "../support/fixtures/DatabaseFixture";
 
 describe("userRepo", () => {
-  let userRepos: UsersRepository[] = [
-    new ProductionUserRepository(prisma),
-    new InMemoryUserRepositorySpy()
-  ];
+  const databaseFixture = new DatabaseFixture();
+  let userRepos: UsersRepository[];
+
+  beforeEach(() => {
+    userRepos = [
+      new ProductionUserRepository(prisma),
+      new InMemoryUserRepositorySpy(),
+    ];
+  });
+
+  afterEach(async () => {
+    await databaseFixture.resetDatabase();
+  });
 
   it("can save and retrieve users by email", async () => {
     const createUserInput = new UserBuilder()

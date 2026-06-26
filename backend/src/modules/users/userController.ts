@@ -28,16 +28,17 @@ export class UserController {
     if (result.success) {
       return res.status(201).json(result);
     } else {
+      const apiResult = { ...result, error: { code: result.error } };
       switch (result.error) {
         case Errors.EmailAlreadyInUse:
         case Errors.UsernameAlreadyTaken:
-          return res.status(409).json(result);
+          return res.status(409).json(apiResult);
         case Errors.ValidationError:
         case Errors.ClientError:
-          return res.status(400).json(result);
+          return res.status(400).json(apiResult);
         case Errors.ServerError:
         default:
-          return res.status(500).json(result);
+          return res.status(500).json(apiResult);
       }
     }
   };
@@ -52,16 +53,17 @@ export class UserController {
     if (result.success) {
       return res.status(200).json(result);
     } else {
+      const apiResult = { ...result, error: { code: result.error } };
       switch (result.error) {
         case Errors.EmailAlreadyInUse:
         case Errors.UsernameAlreadyTaken:
-          return res.status(409).json(result);
+          return res.status(409).json(apiResult);
         case Errors.ValidationError:
         case Errors.ClientError:
-          return res.status(400).json(result);
+          return res.status(400).json(apiResult);
         case Errors.ServerError:
         default:
-          return res.status(500).json(result);
+          return res.status(500).json(apiResult);
       }
     }
   };
@@ -74,17 +76,18 @@ export class UserController {
     if (result.success) {
       return res.status(200).json(result);
     } else {
+      const apiResult = { ...result, error: { code: result.error } };
       switch (result.error) {
         case Errors.UserNotFound:
-          return res.status(404).json(result);
+          return res.status(404).json(apiResult);
         case Errors.UsernameAlreadyTaken:
-          return res.status(409).json(result);
+          return res.status(409).json(apiResult);
         case Errors.ValidationError:
         case Errors.ClientError:
-          return res.status(400).json(result);
+          return res.status(400).json(apiResult);
         case Errors.ServerError:
         default:
-          return res.status(500).json(result);
+          return res.status(500).json(apiResult);
       }
     }
   };

@@ -34,6 +34,14 @@ export class InMemoryUserRepository implements UsersRepository {
     return this.users[index];
   }
 
+  async findById(id: number): Promise<User | null> {
+    return this.users.find((u) => u.id === id) ?? null;
+  }
+
+  async delete(email: string): Promise<void> {
+    this.users = this.users.filter((u) => u.email !== email);
+  }
+
   async reset(): Promise<void> {
     this.users = [];
     this.nextId = 1;

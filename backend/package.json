@@ -6,7 +6,7 @@
   "scripts": {
     "build": "rm -rf ./build && tsc -p tsconfig.build.json",
     "start:dev": "npm run db:setup && npm run db:seed && npx nodemon",
-    "start": "npm run build && node build/index.js",
+    "start": "npm run db:migrate && npm run db:seed && node build/index.js",
     "lint": "eslint . --ext .ts",
     "prettier-format": "run-script-os",
     "prettier-format:win32": "prettier --config .prettierrc \"./src/**/*.ts\" --write",

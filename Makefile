@@ -1,4 +1,4 @@
-.PHONY: dev backend-dev frontend-dev db-seed db-reset
+.PHONY: dev backend-dev frontend-dev db-seed db-reset test
 
 dev:
 	@$(MAKE) -j2 backend-dev frontend-dev
@@ -14,3 +14,9 @@ db-seed:
 
 db-reset:
 	cd backend && npm run db:reset
+
+test:
+	npm run test:unit:back && \
+	npm run test:infra:back && \
+	npm run test:e2e:back && \
+	npm run test:e2e:front

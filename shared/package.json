@@ -3,8 +3,38 @@
   "version": "1.0.0",
   "main": "build/index.js",
   "exports": {
-    ".": "./build/index.js",
-    "./src/*": "./build/*.js"
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./build/index.js"
+    },
+    "./src/api": {
+      "types": "./src/api/index.ts",
+      "default": "./build/api/index.js"
+    },
+    "./src/api/users": {
+      "types": "./src/api/users.ts",
+      "default": "./build/api/users.js"
+    },
+    "./src/api/posts": {
+      "types": "./src/api/posts.ts",
+      "default": "./build/api/posts.js"
+    },
+    "./src/api/marketing": {
+      "types": "./src/api/marketing.ts",
+      "default": "./build/api/marketing.js"
+    },
+    "./src/api/types": {
+      "types": "./src/api/types.ts",
+      "default": "./build/api/types.js"
+    },
+    "./src/utils/textUtils": {
+      "types": "./src/utils/textUtils.ts",
+      "default": "./build/utils/textUtils.js"
+    },
+    "./src/paths": {
+      "types": "./src/paths.ts",
+      "default": "./build/paths.js"
+    }
   },
   "scripts": {
     "build": "rm -rf ./build && tsc"

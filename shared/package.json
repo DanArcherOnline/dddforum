@@ -1,7 +1,14 @@
 {
   "name": "@dddforum/shared",
   "version": "1.0.0",
-  "main": "src/index.ts",
+  "main": "build/index.js",
+  "exports": {
+    ".": "./build/index.js",
+    "./src/*": "./build/*.js"
+  },
+  "scripts": {
+    "build": "rm -rf ./build && tsc"
+  },
   "devDependencies": {
     "@faker-js/faker": "^8.4.1",
     "@types/pg": "^8.20.0",

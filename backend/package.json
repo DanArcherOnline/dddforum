@@ -61,10 +61,10 @@
     "run-script-os": "^1.1.6",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.9",
-    "ts-node": "^10.9.2",
-    "typescript": "^6.0.2"
+    "ts-node": "^10.9.2"
   },
   "dependencies": {
+    "typescript": "^6.0.2",
     "@types/node": "^25.6.0",
     "@prisma/adapter-pg": "7.7.0",
     "@prisma/client": "7.7.0",

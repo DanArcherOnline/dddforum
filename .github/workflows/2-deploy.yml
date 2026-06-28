@@ -16,3 +16,13 @@ jobs:
         with:
           service-id: srv-d8vml86gvqtc738mcjng
           api-key: ${{ secrets.RENDER_TOKEN }}
+
+  deploy-frontend:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy frontend to Render
+        uses: johnbeynon/render-deploy-action@v0.0.8
+        with:
+          service-id: srv-d8vsegcm0tmc73d6ks50
+          api-key: ${{ secrets.RENDER_TOKEN }}

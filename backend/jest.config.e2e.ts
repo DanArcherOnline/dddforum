@@ -10,6 +10,8 @@ const config: Config = {
   moduleNameMapper: {
     '^@dddforum/shared/(.*)$': '<rootDir>/../shared/$1',
   },
+  // Remote DB round-trips in staging are slower than the 5 s default.
+  testTimeout: 30000,
 };
 
 export default config;

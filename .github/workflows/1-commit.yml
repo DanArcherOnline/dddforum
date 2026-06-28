@@ -1,0 +1,32 @@
+name: DDDForum - Commit Phase
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+
+jobs:
+  lint-build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Test (unit tests)
+        run: npm run test:unit:back

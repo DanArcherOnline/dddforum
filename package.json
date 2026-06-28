@@ -2,7 +2,11 @@
   "name": "dddforum",
   "version": "1.0.0",
   "private": true,
-  "workspaces": ["backend", "frontend", "shared"],
+  "workspaces": [
+    "backend",
+    "frontend",
+    "shared"
+  ],
   "scripts": {
     "clean": "npm run clean --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
@@ -14,7 +18,8 @@
     "test:back": "npm run test --workspace=@dddforum/backend",
     "test:infra:back": "npm run test:infra --workspace=@dddforum/backend",
     "test:e2e:back": "npm run test:e2e --workspace=@dddforum/backend",
-    "test:e2e:front": "npm run test:e2e --workspace=@dddforum/frontend"
+    "test:e2e:front": "npm run test:e2e --workspace=@dddforum/frontend",
+    "prepare": "husky"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

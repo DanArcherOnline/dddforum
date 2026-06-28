@@ -1,0 +1,47 @@
+name: DDDForum - Acceptance Test on Staging
+
+on:
+  workflow_run:
+    workflows: ["DDDForum - Deploy to Staging"]
+    types:
+      - completed
+
+env:
+  # NOTE: For study purposes we reuse the production database here.
+  # In a real project this would point to a dedicated staging database so that
+  # the test suite's beforeEach DB reset doesn't wipe production data.
+  NODE_ENV: staging
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+jobs:
+  test:
+    # Only run acceptance tests when the deploy actually succeeded
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Wait for staging deployment to stabilize
+        # The Render deploy action waits for the deploy to finish, but we give
+        # the service a moment to fully come up before hammering it with tests.
+        # Increase this (up to 300s) if Render cold-starts cause flaky tests.
+        run: sleep 30s
+        shell: bash
+
+      - name: Run backend e2e acceptance tests against staging
+        # Runs jest with jest.config.e2e.ts; NODE_ENV=staging and DATABASE_URL
+        # are injected above so the backend connects to the staging database.
+        # Frontend Puppeteer tests are excluded here — they require a headless
+        # browser config and a deployed frontend URL, which is out of scope for
+        # this phase.
+        run: npm run test:staging

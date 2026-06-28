@@ -7,6 +7,9 @@ const config: Config = {
   testEnvironment: 'node',
   testMatch: ['**/tests/features/**/*.e2e.ts'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+  moduleNameMapper: {
+    '^@dddforum/shared/(.*)$': '<rootDir>/../shared/$1',
+  },
 };
 
 export default config;

@@ -12,7 +12,12 @@ export class DatabaseFixture {
   }
 
   async resetDatabase() {
-    const client = new Client({ connectionString: process.env.DATABASE_URL });
+    const connectionString = process.env.DATABASE_URL;
+    const isRemote = !/localhost|127\.0\.0\.1/.test(connectionString ?? "");
+    const client = new Client({
+      connectionString,
+      ...(isRemote ? { ssl: { rejectUnauthorized: false } } : {}),
+    });
     await client.connect();
     try {
       const result = await client.query<{ tablename: string }>(`
